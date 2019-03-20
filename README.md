@@ -29,17 +29,13 @@ cd embed2learn-private
 pipenv install --dev
 ```
 
-### Step 4
+### Step 4 (MacOS only)
 Fixup some existing install issues
 
 ```sh
 pipenv run pip uninstall -y mujoco_py
 pipenv run pip install mujoco_py
 pipenv run python -c 'import mujoco_py'
-pipenv run python launchers/ppo_point_embed.py  # prints an error
-export SCRIPT_DIR=<paste directory from error>
-mkdir -p $SCRIPT_DIR
-cp external/garage/scripts/run_experiment.py $SCRIPT_DIR
 ```
 
 ### Step 5
@@ -58,15 +54,14 @@ pipenv run python launchers/ppo_point_embed.py
 * ~~Bring up non-embedded launchers~~
 * ~~Refactor NPOTaskEmbedding for Runner~~
 * ~~Bring up embedded launchers~~
+* ~~(Ryan) Fix garage data directory config~~
+* ~~(Ryan) Fix garage packaging~~
+* ~~(Ryan) Fix baselines install~~
 * (Zhanpeng) Bring up .pkl launchers
 * (Zhanpeng) Fix MPC launcher
-* (Ryan) Fix mujoco_py install
-* (Ryan) Fix baselines install
 * (Utkarsh) Fix gym-sawyer task space control
 * (Utkarsh??) Fix gym-sawyer pusher
 * (Ryan) Fix gym-sawyer packaging
-* (Ryan) Fix garage data directory config
-* (Ryan) Fix garage packaging
 * (Ryan) Fix multiworld packaging
 
 ### Launchers tracker
@@ -110,10 +105,18 @@ pipenv run python launchers/ppo_point_embed.py
   - test_fixture.py
 
 #### Known Issues and Workarounds
-* PointEnv plotting broken on MacOS (pygame issue)
 * gym-sawyer task space control broken
-* baselines install seems broken with pipenv
-* mujoco_py install is broken -- numpy versions mismatch
+* multiworld assets not copied during setup.py (make PR)
+
+      workaround: use as a submodule for now
+
+* gym-sawyer vendor files files not copied by setup.py
+
+      workaround: use as a submodule for now
+
+##### MacOS Only
+* PointEnv plotting broken on MacOS (pygame issue)
+* mujoco_py install is broken (MacOS only) -- numpy versions mismatch
 
     workaround:
     ```sh
@@ -122,22 +125,4 @@ pipenv run python launchers/ppo_point_embed.py
     pipenv run python -c 'import mujoco_py'
     ```
 
- * garage data directory is in site-packages
- * garage scripts/run_experiment.py not copied during setup
-
-     workaround:
-	 ```sh
-    pipenv run python launchers/ppo_point_embed.py  # prints an error
-    export SCRIPT_DIR=<paste directory from error>
-    mkdir -p $SCRIPT_DIR
-    cp external/garage/scripts/run_experiment.py $SCRIPT_DIR
-    ```
-
-* multiworld assets not copied during setup.py (make PR)
-
-      workaround: use as a submodule for now
-
-* gym-sawyer vendor files files not copied by setup.py
-
-      workaround: use as a submodule for now
 
