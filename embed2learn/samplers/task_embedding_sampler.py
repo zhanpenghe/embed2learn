@@ -1,8 +1,8 @@
 import time
 
-from garage.sampler import utils
+from garage.logger import tabular
 from garage.misc import special
-import garage.misc.logger as logger
+from garage.sampler import utils
 from garage.sampler import parallel_sampler
 from garage.sampler.stateful_pool import singleton_pool
 from garage.tf.misc import tensor_utils
@@ -135,8 +135,8 @@ class TaskEmbeddingSampler(BatchSampler):
         returns = []
 
         max_path_length = self.algo.max_path_length
-        action_space = self.algo.env.action_space
-        observation_space = self.algo.env.observation_space
+        action_space = self.algo.env_spec.action_space
+        observation_space = self.algo.env_spec.observation_space
 
         if hasattr(self.algo.baseline, "predict_n"):
             all_path_baselines = self.algo.baseline.predict_n(paths)
@@ -298,16 +298,15 @@ class TaskEmbeddingSampler(BatchSampler):
             cpu_agent_infos=cpu_agent_infos,  # DEBUG
         )
 
-        logger.record_tabular('Iteration', itr)
-        logger.record_tabular('AverageDiscountedReturn',
-                              average_discounted_return)
-        logger.record_tabular('AverageReturn', np.mean(undiscounted_returns))
-        logger.record_tabular('NumTrajs', len(paths))
-        logger.record_tabular('Entropy', ent)
-        logger.record_tabular('Perplexity', np.exp(ent))
-        logger.record_tabular('StdReturn', np.std(undiscounted_returns))
-        logger.record_tabular('MaxReturn', np.max(undiscounted_returns))
-        logger.record_tabular('MinReturn', np.min(undiscounted_returns))
+        tabular.record('Iteration', itr)
+        tabular.record('AverageDiscountedReturn', average_discounted_return)
+        tabular.record('AverageReturn', np.mean(undiscounted_returns))
+        tabular.record('NumTrajs', len(paths))
+        tabular.record('Entropy', ent)
+        tabular.record('Perplexity', np.exp(ent))
+        tabular.record('StdReturn', np.std(undiscounted_returns))
+        tabular.record('MaxReturn', np.max(undiscounted_returns))
+        tabular.record('MinReturn', np.min(undiscounted_returns))
 
         return samples_data
 

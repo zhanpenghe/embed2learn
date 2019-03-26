@@ -24,7 +24,7 @@ def run_task(*_):
             env_spec=env, include_action_to_input=False)
 
         algo = PPO(
-            env=env,
+            env_spec=env.spec,
             policy=policy,
             baseline=baseline,
             batch_size=1024,  # 4096

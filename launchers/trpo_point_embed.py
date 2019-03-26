@@ -100,7 +100,7 @@ def run_task(*_):
 
         max_path_length = 50
         algo = TRPOTaskEmbedding(
-            env=env,
+            env_spec=env.spec,
             policy=policy,
             baseline=baseline,
             inference=traj_embedding,

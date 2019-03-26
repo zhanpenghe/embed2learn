@@ -1,7 +1,7 @@
 import argparse
 import os.path as osp
 
-from garage.config import LOG_DIR
+from garage.config import GARAGE_LOG_DIR
 from garage.experiment import LocalRunner, run_experiment
 from garage.exploration_strategies import OUStrategy
 from garage.replay_buffer import SimpleReplayBuffer
@@ -28,14 +28,14 @@ def main(latent_policy_pkl):
             action_noise = OUStrategy(env, sigma=0.2)
 
             policy = ContinuousMLPPolicy(
-                env_spec=env,
+                env_spec=env.spec,
                 name="Actor",
                 hidden_sizes=[64, 64],
                 hidden_nonlinearity=tf.nn.relu,
                 output_nonlinearity=tf.nn.tanh)
 
             qf = ContinuousMLPQFunction(
-                env_spec=env,
+                env_spec=env.spec,
                 name="Critic",
                 hidden_sizes=[64, 64],
                 hidden_nonlinearity=tf.nn.relu)
@@ -44,7 +44,7 @@ def main(latent_policy_pkl):
                 env_spec=env.spec, size_in_transitions=int(1e6), time_horizon=100)
 
             algo = DDPG(
-                env,
+                env.spec,
                 policy=policy,
                 policy_lr=1e-4,
                 qf_lr=1e-3,
@@ -93,6 +93,6 @@ if __name__ == '__main__':
     log_dir = args.log_directory
 
     pickle_filename = 'itr_{}.pkl'.format(args.iteration) if args.iteration >= 0 else 'params.pkl'
-    latent_policy_pkl = osp.join(LOG_DIR, log_dir, pickle_filename)
+    latent_policy_pkl = osp.join(GARAGE_LOG_DIR, log_dir, pickle_filename)
 
     main(latent_policy_pkl)

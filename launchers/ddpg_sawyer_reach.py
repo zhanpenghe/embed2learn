@@ -38,7 +38,7 @@ def run_task(*_):
             env_spec=env.spec, size_in_transitions=int(1e6), time_horizon=100)
 
         ddpg = DDPG(
-            env,
+            env.spec,
             policy=actor_net,
             policy_lr=1e-4,
             qf=critic_net,

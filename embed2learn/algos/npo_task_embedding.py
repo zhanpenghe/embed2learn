@@ -4,10 +4,11 @@ import pickle
 import time
 import os.path as osp
 
+from garage.config import GARAGE_LOG_DIR
 from garage.core import Serializable
 from garage.misc import special
 from garage.misc.overrides import overrides
-import garage.misc.logger as logger
+from garage.logger import logger, tabular
 from garage.tf.algos import BatchPolopt
 from garage.tf.misc import tensor_utils
 from garage.tf.misc.tensor_utils import compute_advantages
@@ -21,6 +22,7 @@ from garage.tf.misc.tensor_utils import graph_inputs
 from garage.tf.optimizers import LbfgsOptimizer
 import numpy as np
 import tensorflow as tf
+import tensorflow_probability as tfp
 
 from embed2learn.embeddings import StochasticEmbedding
 from embed2learn.misc.metrics import rrse
@@ -41,6 +43,9 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
     """
 
     def __init__(self,
+                 policy,
+                 baseline,
+                 inference=None,
                  name="NPOTaskEmbedding",
                  pg_loss=PGLoss.VANILLA,
                  kl_constraint=None,
@@ -50,10 +55,8 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
                  max_kl_step=0.01,
                  num_minibatches=None,
                  num_opt_epochs=None,
-                 policy=None,
                  policy_ent_coeff=1e-2,
                  embedding_ent_coeff=1e-5,
-                 inference=None,
                  inference_optimizer=LbfgsOptimizer,
                  inference_optimizer_args=dict(),
                  inference_ce_coeff=1e-3,
@@ -62,7 +65,6 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
                  stop_ce_graident=False,
                  **kwargs):
         Serializable.quick_init(self, locals())
-        assert kwargs['env'].task_space
         assert isinstance(policy, StochasticMultitaskPolicy)
         assert isinstance(inference, StochasticEmbedding)
 
@@ -90,25 +92,23 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
             self.inference_optimizer = inference_optimizer(
                 **inference_optimizer_args)
 
-            super().__init__(policy=policy, **kwargs)
+            super().__init__(policy=policy, baseline=baseline, **kwargs)
 
     @overrides
     def train_once(self, itr, paths):
         itr_start_time = time.time()
         with logger.prefix('itr #%d | ' % itr):
             self.log_diagnostics(paths)
-            logger.log("Optimizing policy...")
+            logger.log('Optimizing policy...')
             self.optimize_policy(itr, paths)
-            logger.record_tabular('IterTime', time.time() - itr_start_time)
-            logger.dump_tabular()
+            tabular.record('IterTime', time.time() - itr_start_time)
 
     @overrides
-    def get_itr_snapshot(self, itr, paths):
+    def get_itr_snapshot(self, itr):
         return dict(
             itr=itr,
             policy=self.policy,
-            # baseline=self.baseline,
-            env=self.env,
+            baseline=self.baseline,
             inference=self.inference,
         )
 
@@ -778,36 +778,36 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
 
         # Calculate effect of the entropy terms
         d_rewards = np.mean(aug_rewards - env_rewards)
-        logger.record_tabular('Policy/EntRewards', d_rewards)
+        tabular.record('Policy/EntRewards', d_rewards)
 
         aug_average_discounted_return = \
             np.mean([path["returns"][0] for path in paths])
         d_returns = np.mean(aug_average_discounted_return -
                             env_average_discounted_return)
-        logger.record_tabular('Policy/EntReturns', d_returns)
+        tabular.record('Policy/EntReturns', d_returns)
 
         # Calculate explained variance
         ev = special.explained_variance_1d(
             np.concatenate(baselines), aug_returns)
-        logger.record_tabular('Baseline/ExplainedVariance', ev)
+        tabular.record('Baseline/ExplainedVariance', ev)
 
         inference_rmse = (samples_data['trajectory_infos']['mean'] -
                           samples_data['latents'])**2.
         inference_rmse = np.sqrt(inference_rmse.mean())
-        logger.record_tabular('Inference/RMSE', inference_rmse)
+        tabular.record('Inference/RMSE', inference_rmse)
 
         inference_rrse = rrse(
             samples_data['latents'], samples_data['trajectory_infos']['mean'])
-        logger.record_tabular('Inference/RRSE', inference_rrse)
+        tabular.record('Inference/RRSE', inference_rrse)
 
         embed_ent = self.f_embedding_entropy(*policy_opt_input_values)
-        logger.record_tabular('Embedding/Entropy', embed_ent)
+        tabular.record('Embedding/Entropy', embed_ent)
 
         infer_ce = self.f_inference_ce(*policy_opt_input_values)
-        logger.record_tabular('Inference/CrossEntropy', infer_ce)
+        tabular.record('Inference/CrossEntropy', infer_ce)
 
         pol_ent = self.f_policy_entropy(*policy_opt_input_values)
-        logger.record_tabular('Policy/Entropy', pol_ent)
+        tabular.record('Policy/Entropy', pol_ent)
 
         task_ents = self.f_task_entropies(*policy_opt_input_values)
         tasks = samples_data["tasks"][:, 0, :]
@@ -819,14 +819,13 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
             pct_completed = np.mean(completed)
             num_samples = np.sum(lengths)
             num_trajs = lengths.shape[0]
-            logger.record_tabular('Tasks/EpisodeLength/t={}'.format(t),
-                                  np.mean(lengths))
-            logger.record_tabular('Tasks/CompletionRate/t={}'.format(t),
-                                  pct_completed)
-            # logger.record_tabular('Tasks/NumSamples/t={}'.format(t),
-            #                       num_samples)
-            # logger.record_tabular('Tasks/NumTrajs/t={}'.format(t), num_trajs)
-            logger.record_tabular('Tasks/Entropy/t={}'.format(t), task_ents[t])
+            tabular.record('Tasks/EpisodeLength/t={}'.format(t),
+                np.mean(lengths))
+            tabular.record('Tasks/CompletionRate/t={}'.format(t), 
+                pct_completed)
+            # tabular.record('Tasks/NumSamples/t={}'.format(t), num_samples)
+            # tabular.record('Tasks/NumTrajs/t={}'.format(t), num_trajs)
+            tabular.record('Tasks/Entropy/t={}'.format(t), task_ents[t])
 
         return samples_data
 
@@ -838,20 +837,19 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
         all_tasks = np.eye(num_tasks, num_tasks)
         _, latent_infos = self.policy._embedding.get_latents(all_tasks)
         for i in range(self.policy.latent_space.flat_dim):
-            log_stds = latent_infos["log_std"][:, i]
-            if self.policy.embedding._std_parameterization == "exp":
+            means = latent_infos['mean'][:, i]
+            log_stds = latent_infos['log_std'][:, i]
+            if self.policy.embedding._std_parameterization == 'exp':
                 stds = np.exp(log_stds)
-            elif self.policy.embedding._std_parameterization == "softplus":
+            elif self.policy.embedding._std_parameterization == 'softplus':
                 stds = np.log(1. + log_stds)
             else:
                 raise NotImplementedError
-            logger.record_histogram_by_type(
-                "normal",
-                shape=[1000, num_tasks],
-                key="Embedding/i={}".format(i),
-                mean=latent_infos["mean"][:, i],
-                stddev=stds)
 
+            with tf.name_scope('logging'):
+                dist = tfp.distributions.MultivariateNormalDiag(
+                    loc=means, scale_diag=stds)
+            tabular.record('Embedding/i={}'.format(i), dist)
 
         # TODO: find a way to do this with the new interface
         # num_traj = len(samples_data['paths'])
@@ -868,48 +866,46 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
     def train_policy_and_embedding_networks(self, policy_opt_input_values):
         """ Joint optimization of policy and embedding networks """
 
-        logger.log("Computing loss before")
+        logger.log('Computing loss before')
         loss_before = self.optimizer.loss(policy_opt_input_values)
 
-        logger.log("Computing KL before")
+        logger.log('Computing KL before')
         policy_kl_before = self.f_policy_kl(*policy_opt_input_values)
         embed_kl_before = self.f_embedding_kl(*policy_opt_input_values)
 
-        logger.log("Optimizing")
+        logger.log('Optimizing')
         self.optimizer.optimize(policy_opt_input_values)
 
-        logger.log("Computing KL after")
+        logger.log('Computing KL after')
         policy_kl = self.f_policy_kl(*policy_opt_input_values)
         embed_kl = self.f_embedding_kl(*policy_opt_input_values)
 
-        logger.log("Computing loss after")
+        logger.log('Computing loss after')
         loss_after = self.optimizer.loss(policy_opt_input_values)
 
-        logger.record_tabular('Policy/LossBefore', loss_before)
-        logger.record_tabular('Policy/LossAfter', loss_after)
-        logger.record_tabular('Policy/KLBefore', policy_kl_before)
-        logger.record_tabular('Policy/KL', policy_kl)
-        logger.record_tabular('Policy/dLoss', loss_before - loss_after)
-        logger.record_tabular('Embedding/KLBefore', embed_kl_before)
-        logger.record_tabular('Embedding/KL', embed_kl)
+        tabular.record('Policy/LossBefore', loss_before)
+        tabular.record('Policy/LossAfter', loss_after)
+        tabular.record('Policy/KLBefore', policy_kl_before)
+        tabular.record('Policy/KL', policy_kl)
+        tabular.record('Policy/dLoss', loss_before - loss_after)
+        tabular.record('Embedding/KLBefore', embed_kl_before)
+        tabular.record('Embedding/KL', embed_kl)
 
         return loss_after
 
     def train_inference_network(self, inference_opt_input_values):
         """ Optimize inference network """
-
-        logger.log("Optimizing inference network...")
+        logger.log('Optimizing inference network...')
         infer_loss_before = self.inference_optimizer.loss(
             inference_opt_input_values)
-        logger.record_tabular('Inference/Loss', infer_loss_before)
+        tabular.record('Inference/Loss', infer_loss_before)
         self.inference_optimizer.optimize(inference_opt_input_values)
         infer_loss_after = self.inference_optimizer.loss(
             inference_opt_input_values)
-        logger.record_tabular('Inference/dLoss',
-                              infer_loss_before - infer_loss_after)
+        tabular.record('Inference/dLoss', infer_loss_before - infer_loss_after)
 
         return infer_loss_after
 
     def save_samples(self, itr, samples_data):
-        with open(osp.join(logger.get_snapshot_dir(), 'samples_%i.pkl' % itr), "wb") as fout:
+        with open(osp.join(GARAGE_LOG_DIR, 'samples_%i.pkl' % itr), "wb") as fout:
             pickle.dump(samples_data, fout)

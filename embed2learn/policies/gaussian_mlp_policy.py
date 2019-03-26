@@ -1,7 +1,7 @@
 from akro.tf import Box
 from garage.core import Serializable
 from garage.experiment import deterministic
-from garage.misc import logger
+from garage.logger import tabular
 from garage.misc.overrides import overrides
 from garage.tf.core import Parameterized
 from garage.tf.distributions import DiagonalGaussian
@@ -301,7 +301,7 @@ class GaussianMLPPolicy(StochasticPolicy, Parameterized, Serializable):
     def log_diagnostics(self, paths):
         log_stds = np.vstack(
             [path["agent_infos"]["log_std"] for path in paths])
-        logger.record_tabular('AveragePolicyStd', np.mean(np.exp(log_stds)))
+        tabular.record('AveragePolicyStd', np.mean(np.exp(log_stds)))
 
     @property
     def distribution(self):

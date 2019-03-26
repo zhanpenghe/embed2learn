@@ -125,7 +125,7 @@ def run_task(v):
         baseline = MultiTaskGaussianMLPBaseline(env_spec=env.spec, extra_dims=extra)
 
         algo = PPOTaskEmbedding(
-            env=env,
+            env_spec=env.spec,
             policy=policy,
             baseline=baseline,
             inference=traj_embedding,
@@ -162,8 +162,8 @@ config = dict(
 
 run_experiment(
     run_task,
-    exp_prefix='ppo_point_embed_random_start_192_polent_300maxpath',
-    n_parallel=2,
+    exp_prefix='ppo_point_embed',
+    n_parallel=1,
     seed=1,
     variant=config,
     plot=False,

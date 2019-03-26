@@ -6,7 +6,7 @@ from baselines import deepq
 from baselines.common import set_global_seeds
 from baselines import bench
 from baselines import logger
-from garage.config import LOG_DIR
+from garage.config import GARAGE_LOG_DIR
 import joblib
 import numpy as np
 from sawyer.mujoco import SimpleReacherEnv
@@ -17,7 +17,7 @@ from embed2learn.envs import DiscreteEmbeddedPolicyEnv
 
 # USE_LOG = "local/sawyer-reach-embed-8goal/sawyer_reach_embed_8goal_2018_08_19_17_09_21_0001/"
 USE_LOG = "local/sawyer-reach-embed-notanh/sawyer_reach_embed_notanh_2018_08_23_12_38_13_0001"
-latent_policy_pkl = osp.join(LOG_DIR, USE_LOG, "itr_300.pkl")
+latent_policy_pkl = osp.join(GARAGE_LOG_DIR, USE_LOG, "itr_300.pkl")
 
 
 def main():

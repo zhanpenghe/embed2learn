@@ -37,7 +37,7 @@ def run_task(v):
         )
 
         algo = PPO(
-            env=env,
+            env_spec=env.spec,
             policy=policy,
             baseline=baseline,
             batch_size=v.batch_size,  # 4096

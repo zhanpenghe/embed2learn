@@ -1,6 +1,6 @@
 import os.path as osp
 
-from garage.config import LOG_DIR
+from garage.config import GARAGE_LOG_DIR
 from garage.experiment import run_experiment
 from garage.tf.algos import PPO
 from garage.tf.envs import TfEnv
@@ -14,7 +14,7 @@ from embed2learn.envs import EmbeddedPolicyEnv
 
 
 USE_LOG = "local/sawyer_reach_embed_2goal_2018_08_12_14_57_14_0001"
-latent_policy_pkl = osp.join(LOG_DIR, USE_LOG, "itr_382.pkl")
+latent_policy_pkl = osp.join(GARAGE_LOG_DIR, USE_LOG, "itr_382.pkl")
 
 
 def run_task(*_):
@@ -36,7 +36,7 @@ def run_task(*_):
     baseline = GaussianMLPBaseline(env_spec=env, include_action_to_input=False)
 
     algo = PPO(
-        env=env,
+        env_spec=env.spec,
         policy=policy,
         baseline=baseline,
         batch_size=1024,  # 4096

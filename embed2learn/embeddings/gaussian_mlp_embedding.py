@@ -1,7 +1,7 @@
 from akro.tf import Box
 from garage.core import Serializable
 from garage.experiment import deterministic
-from garage.misc import logger
+from garage.logger import tabular
 from garage.misc.overrides import overrides
 from garage.tf.core import Parameterized
 from garage.tf.distributions import DiagonalGaussian
@@ -377,4 +377,4 @@ class GaussianMLPEmbedding(StochasticEmbedding, Parameterized, Serializable):
     def log_diagnostics(self):
         log_stds = np.vstack(
             [path["agent_infos"]["log_std"] for path in paths])
-        logger.record_tabular('AverageEmbeddingStd', np.mean(np.exp(log_stds)))
+        tabular.record('AverageEmbeddingStd', np.mean(np.exp(log_stds)))

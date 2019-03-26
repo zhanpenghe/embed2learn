@@ -17,8 +17,9 @@ gym-sawyer = {path = "./external/gym-sawyer", editable = true}
 multiworld = {path = "./external/multiworld", editable = true}
 # multiworld = {git = "git+https://github.com/vitchyr/multiworld.git@b073e69c6991e877723ee55f85a3dfc57bed8674"}
 numpy = "*"
+gym = "==0.10.11"
 pygame = "==1.9.4"
-rlgarage = {git = "git+https://github.com/rlworkgroup/garage.git@0f01628ec234e0d1a10e72a269c4a29a96676ce3"}
+rlgarage = {git = "git+https://github.com/rlworkgroup/garage.git@e2d4f4ff335b634f32eb6d28a5d5c6e4b1172ecd"}
 
 [requires]
 python_version = "3.6"
