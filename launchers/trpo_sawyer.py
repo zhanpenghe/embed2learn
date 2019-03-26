@@ -1,6 +1,6 @@
-from garage.baselines import LinearFeatureBaseline
 from garage.envs import normalize
 from garage.experiment import LocalRunner
+from garage.np.baselines import LinearFeatureBaseline
 from garage.tf.algos import TRPO
 from garage.tf.policies import GaussianMLPPolicy
 from garage.tf.envs import TfEnv

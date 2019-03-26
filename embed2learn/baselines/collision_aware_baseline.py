@@ -1,8 +1,8 @@
 import numpy as np
 
-from garage.baselines import Baseline
 from garage.core import Serializable
 from garage.misc.overrides import overrides
+from garage.np.baselines import Baseline
 from garage.tf.core import Parameterized
 from garage.tf.regressors import GaussianMLPRegressor
 

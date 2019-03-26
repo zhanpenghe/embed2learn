@@ -4,7 +4,7 @@ import os.path as osp
 from garage.config import GARAGE_LOG_DIR
 from garage.experiment import LocalRunner, run_experiment
 from garage.replay_buffer import SimpleReplayBuffer
-from garage.exploration_strategies import OUStrategy
+from garage.np.exploration_strategies import OUStrategy
 from garage.tf.algos import DDPG
 from garage.tf.envs import TfEnv
 from garage.tf.policies import ContinuousMLPPolicy

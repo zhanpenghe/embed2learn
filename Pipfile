@@ -19,7 +19,7 @@ multiworld = {path = "./external/multiworld", editable = true}
 numpy = "*"
 gym = "==0.10.11"
 pygame = "==1.9.4"
-rlgarage = {git = "git+https://github.com/rlworkgroup/garage.git@e2d4f4ff335b634f32eb6d28a5d5c6e4b1172ecd"}
+rlgarage = {git = "git+https://github.com/rlworkgroup/garage.git@b70c74bb85420af99ee1aa4db10c678ddd9b5735"}
 
 [requires]
 python_version = "3.6"

@@ -1,7 +1,7 @@
 import numpy as np
 
 from garage.misc.overrides import overrides
-from garage.baselines import LinearFeatureBaseline
+from garage.np.baselines import LinearFeatureBaseline
 
 
 class MultiTaskLinearFeatureBaseline(LinearFeatureBaseline):
