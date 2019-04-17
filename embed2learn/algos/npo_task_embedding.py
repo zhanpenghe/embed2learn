@@ -144,7 +144,7 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
         self._inference_opt_inputs = infer_opt_inputs
 
         # Jointly optimize policy and embedding network
-        pol_loss, pol_kl, embed_kl = self._build_policy_loss(pol_loss_inputs)
+        pol_loss, pol_kl, embed_kl, embed_composition_kl = self._build_policy_loss(pol_loss_inputs)
         self.optimizer.update_opt(
             loss=pol_loss,
             target=self.policy,
@@ -528,6 +528,9 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
                 surr_loss -= self.embedding_ent_coeff * embedding_entropy
 
             embed_mean_kl = self._build_embedding_kl(i)
+            embed_composition_mean_kl = self._build_embedding_composition_kl(i)
+
+            surr_loss += embed_composition_mean_kl
 
         # Diagnostic functions
         self.f_policy_kl = tensor_utils.compile_function(
@@ -547,7 +550,7 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
             returns,
             log_name="f_returns")
 
-        return surr_loss, pol_mean_kl, embed_mean_kl
+        return surr_loss, pol_mean_kl, embed_mean_kl, embed_composition_mean_kl
 
     def _build_entropy_terms(self, i):
         """ Calculate entropy terms """
@@ -636,6 +639,63 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
                 log_name="f_embedding_kl")
 
             return mean_kl
+
+    def _build_embedding_composition_kl(self, i):
+        dist = self.policy._dist
+        def get_len(tensor):
+            data_mask = tf.cast(tensor, tf.bool)
+            data_len = tf.reduce_sum(tf.cast(data_mask, tf.int32), axis=1)
+
+        with tf.name_scope("embedding_composition_kl"):
+            task_var_len = i.flat.task_var.get_shape().as_list()[-1]
+            task_var_1 = i.flat.task_var
+            task_var_2 = tf.roll(task_var_1, shift=1, axis=0)
+            task_var_1_len = get_len(task_var_1)
+            task_var_2_len = get_len(task_var_2)
+            concat_task_var = tf.concat([task_var_1[:, :int(task_var_len / 2)],
+                                         task_var_2[:, int(task_var_len / 2):]],
+                                        axis=1)
+
+            embed_dist_info_flat_1 = self.policy.dist_info_sym(
+                task_var_1,
+                i.flat.obs_var,
+                i.flat.embed_state_info_vars,
+                name="embed_dist_info_flat")
+            embed_dist_info_valid_1 = filter_valids_dict(
+                embed_dist_info_flat_1,
+                i.flat.valid_var,
+                name="embed_dist_info_valid")
+
+            embed_dist_info_valid_2 = {k: tf.roll(tensor, shift=1, axis=0) for k, tensor in embed_dist_info_valid_1.items()}
+
+            embed_dist_info_valid_sum = dict(
+                mean=embed_dist_info_valid_1['mean'],
+                log_std=tf.log(tf.sqrt(tf.exp(tf.square(embed_dist_info_valid_1['log_std'])) + \
+                                       tf.exp(tf.square(embed_dist_info_valid_2['log_std']))))
+            )
+
+            combined_embed_dist_info_flat = self.policy.dist_info_sym(
+                concat_task_var,
+                i.flat.obs_var,
+                i.flat.embed_state_info_vars,
+                name="embed_dist_info_flat")
+            combined_embed_dist_info_valid = filter_valids_dict(
+                combined_embed_dist_info_flat,
+                i.flat.valid_var,
+                name="embed_dist_info_valid")
+
+            # calculate kl divergence
+            kl = dist.kl_sym(embed_dist_info_valid_sum,
+                             combined_embed_dist_info_valid)
+            mean_kl = tf.reduce_mean(kl)
+            
+            # Diagnostic function
+            self.f_embedding_composition_kl = tensor_utils.compile_function(
+                flatten_inputs(self._policy_opt_inputs),
+                mean_kl,
+                log_name="f_embedding_composition_kl")
+
+        return mean_kl
 
     def _build_inference_loss(self, i):
         """ Build loss function for the inference network """
@@ -870,6 +930,7 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
         logger.log("Computing KL before")
         policy_kl_before = self.f_policy_kl(*policy_opt_input_values)
         embed_kl_before = self.f_embedding_kl(*policy_opt_input_values)
+        embed_composition_kl_before = self.f_embedding_composition_kl(*policy_opt_input_values)
 
         logger.log("Optimizing")
         self.optimizer.optimize(policy_opt_input_values)
@@ -877,6 +938,7 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
         logger.log("Computing KL after")
         policy_kl = self.f_policy_kl(*policy_opt_input_values)
         embed_kl = self.f_embedding_kl(*policy_opt_input_values)
+        embed_composition_kl = self.f_embedding_composition_kl(*policy_opt_input_values)
 
         logger.log("Computing loss after")
         loss_after = self.optimizer.loss(policy_opt_input_values)
@@ -885,6 +947,8 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
         logger.record_tabular('Policy/LossAfter', loss_after)
         logger.record_tabular('Policy/KLBefore', policy_kl_before)
         logger.record_tabular('Policy/KL', policy_kl)
+        logger.record_tabular('Policy/KLCompBefore', embed_composition_kl_before)
+        logger.record_tabular('Policy/KLComp', embed_composition_kl)
         logger.record_tabular('Policy/dLoss', loss_before - loss_after)
         logger.record_tabular('Embedding/KLBefore', embed_kl_before)
         logger.record_tabular('Embedding/KL', embed_kl)
