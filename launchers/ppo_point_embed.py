@@ -29,12 +29,12 @@ def build_dataset(words, vocab_size):
     """Process raw inputs into a dataset."""
     count = [['UNK', -1]]
     count.extend(collections.Counter(words).most_common(vocab_size - 1))
-    wordToIndexMap = {}
+    word_to_index_map = {}
     index = 0
     for word, _ in count:
-        wordToIndexMap[word] = index
+        word_to_index_map[word] = index
         index += 1
-    return wordToIndexMap
+    return word_to_index_map
 
 def description_to_code(description, dictionary, max_sentence_length):
     code = []
@@ -49,10 +49,10 @@ goals = circle(3.0, N)
 goal_descriptions = ['move right', 'move up', 'move left', 'move down']
 words = list(itertools.chain.from_iterable([s.split(' ') for s in goal_descriptions]))
 vocab_size = len(words)
-wordToIndexMap = build_dataset(words, vocab_size)
+word_to_index_map = build_dataset(words, vocab_size)
 max_sentence_length = 3
-sentence_code_dim = len(wordToIndexMap)
-goal_codes = [description_to_code(s, wordToIndexMap, max_sentence_length) for s in goal_descriptions]
+sentence_code_dim = len(word_to_index_map)
+goal_codes = [description_to_code(s, word_to_index_map, max_sentence_length) for s in goal_descriptions]
 TASKS = {
     str(i + 1): {
         'args': [],
