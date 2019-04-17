@@ -25,23 +25,16 @@ def circle(r, n):
     for t in np.arange(0, 2 * np.pi, 2 * np.pi / n):
         yield r * np.sin(t), r * np.cos(t)
 
-def build_dataset(words, n_words):
+def build_dataset(words, vocab_size):
     """Process raw inputs into a dataset."""
     count = [['UNK', -1]]
-    count.extend(collections.Counter(words).most_common(n_words - 1))
-    dictionary = {}
+    count.extend(collections.Counter(words).most_common(vocab_size - 1))
+    word_to_index_map = {}
+    index = 0
     for word, _ in count:
-        dictionary[word] = len(dictionary)
-    data = []
-    unk_count = 0
-    for word in words:
-        index = dictionary.get(word, 0)
-        if index == 0:  # dictionary['UNK']
-            unk_count += 1
-        data.append(index)
-    count[0][1] = unk_count
-    reversed_dictionary = dict(zip(dictionary.values(), dictionary.keys()))
-    return data, count, dictionary, reversed_dictionary
+        word_to_index_map[word] = index
+        index += 1
+    return word_to_index_map
 
 def description_to_code(description, dictionary, max_sentence_length):
     code = []
@@ -55,10 +48,11 @@ N = 4
 goals = circle(3.0, N)
 goal_descriptions = ['move right', 'move up', 'move left', 'move down']
 words = list(itertools.chain.from_iterable([s.split(' ') for s in goal_descriptions]))
-_, num_words, dictionary, rev_dictionary = build_dataset(words, len(words))
+vocab_size = len(words)
+word_to_index_map = build_dataset(words, vocab_size)
 max_sentence_length = 3
-sentence_code_dim = len(num_words)
-goal_codes = [description_to_code(s, dictionary, max_sentence_length) for s in goal_descriptions]
+sentence_code_dim = len(word_to_index_map)
+goal_codes = [description_to_code(s, word_to_index_map, max_sentence_length) for s in goal_descriptions]
 TASKS = {
     str(i + 1): {
         'args': [],
