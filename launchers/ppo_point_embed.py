@@ -8,6 +8,7 @@ import tensorflow as tf
 import itertools
 import collections
 
+from pathlib import Path
 from embed2learn.algos import PPOTaskEmbedding
 from embed2learn.baselines import MultiTaskGaussianMLPBaseline
 from embed2learn.envs import PointEnv
@@ -19,6 +20,9 @@ from embed2learn.embeddings.utils import concat_spaces
 from embed2learn.experiment import TaskEmbeddingRunner
 from embed2learn.policies import GaussianMLPMultitaskPolicy
 from embed2learn.samplers import TaskEmbeddingSampler
+from embed2learn.util import TaskDescriptionVectorizer
+
+
 
 
 def circle(r, n):
@@ -53,12 +57,21 @@ def description_to_code(description, dictionary, max_sentence_length):
 
 N = 4
 goals = circle(3.0, N)
-goal_descriptions = ['move right', 'move up', 'move left', 'move down']
-words = list(itertools.chain.from_iterable([s.split(' ') for s in goal_descriptions]))
-_, num_words, dictionary, rev_dictionary = build_dataset(words, len(words))
-max_sentence_length = 3
-sentence_code_dim = len(num_words)
-goal_codes = [description_to_code(s, dictionary, max_sentence_length) for s in goal_descriptions]
+
+datadir = Path(".")
+
+with open(datadir / "goal_descriptions.txt") as f:
+    goal_descriptions = [l.strip() for l in f]
+
+task_description_vectorizer = TaskDescriptionVectorizer(
+        corpus=goal_descriptions
+    )
+
+sentence_code_dim = task_description_vectorizer.sentence_code_dim
+max_sentence_length = task_description_vectorizer.max_sentence_length
+
+goal_codes = task_description_vectorizer.transform(goal_descriptions)
+
 TASKS = {
     str(i + 1): {
         'args': [],
