@@ -12,7 +12,7 @@ class TaskDescriptionVectorizer(object):
     Example:
         >>> vec = TaskDescriptionVectorizer(["'move right', 'move up', 'move left', 'move down',"])
         >>> task_desc_vec.transform(["move right", "move left"])
-        [[1, 2, 0], [1, 4, 0]]
+        [[1, 3, 0], [1, 4, 0]]
 
     """
 
@@ -52,7 +52,7 @@ class TaskDescriptionVectorizer(object):
         for func in self.preprocessing_actions:
             tokens = func(tokens)
         return tokens
-    
+
     def transform_one(self, line):
         """
         Transform line to vector
@@ -81,9 +81,9 @@ class TaskDescriptionVectorizer(object):
         Build dictionary (token to index), rev_dictionary (index to token)
         """
         count = collections.Counter(tokens)
-        self.sentence_code_dim = len(count)
 
-        ordered_tokens = ['UNK'] + sorted(count.keys(), key=lambda k: count[k], reverse=True)
+        ordered_tokens = ['UNK'] + sorted(count.keys(), key=lambda k: (count[k], k), reverse=True)
+        self.sentence_code_dim = len(ordered_tokens)
 
         self.dictionary = collections.defaultdict(int)
         self.rev_dictionary = collections.defaultdict(lambda: "UNK")
@@ -91,3 +91,16 @@ class TaskDescriptionVectorizer(object):
         for i, word in enumerate(ordered_tokens):
             self.dictionary[word] = i
             self.rev_dictionary[i] = word
+
+    def reverse_transform_one(self, vec):
+        """
+        Transform vector to line
+        """
+        return " ".join(
+                map(lambda i: self.rev_dictionary[i], 
+                    filter(
+                        lambda i: i != 0,
+                        vec
+                        )
+                    )
+                )
