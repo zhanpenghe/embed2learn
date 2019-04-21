@@ -20,6 +20,9 @@ class PointEnv(gym.Env, Serializable):
     def __init__(
             self,
             goal=(1, 1),
+            goal_description='',
+            sentence_code_dim=None,
+            max_sentence_length=None,
             random_start=False,
             show_traces=True,
             completion_bonus=0.,
@@ -30,6 +33,9 @@ class PointEnv(gym.Env, Serializable):
         # Parameterized.__init__(self)
 
         self._goal = np.array(goal, dtype=np.float32)
+        self._goal_description = goal_description
+        self._sentence_code_dim = sentence_code_dim
+        self._max_sentence_length = max_sentence_length
         self._point = np.zeros(2)
         self._completion_bonus = completion_bonus
         self._never_done = never_done
@@ -41,6 +47,7 @@ class PointEnv(gym.Env, Serializable):
         self.zoom = 50.
         self.show_traces = show_traces
         self.random_start = random_start
+        self.max_reach_range = 5
 
         self._traces = deque(maxlen=MAX_SHOWN_TRACES)
 
@@ -71,7 +78,7 @@ class PointEnv(gym.Env, Serializable):
         a *= self._action_scale
         a = np.clip(a, self.action_space.low, self.action_space.high)
 
-        self._point = np.clip(self._point + a, -5, 5)
+        self._point = np.clip(self._point + a, -self.max_reach_range, self.max_reach_range)
         self._traces[-1].append(tuple(self._point))
 
         dist = np.linalg.norm(self._point - self._goal)

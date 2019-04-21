@@ -1,8 +1,8 @@
 import time
 
-from garage.logger import tabular
-from garage.misc import special
 from garage.sampler import utils
+from garage.misc import special
+from garage.logger import logger, tabular
 from garage.sampler import parallel_sampler
 from garage.sampler.stateful_pool import singleton_pool
 from garage.tf.misc import tensor_utils
@@ -23,6 +23,7 @@ def rollout(env,
 
     observations = []
     tasks = []
+    tasks_gt = []
     latents = []
     latent_infos = []
     actions = []
@@ -38,6 +39,7 @@ def rollout(env,
     # NOTE: it is important to do this _once per rollout_, not once per
     # timestep, since we need correlated noise.
     t = env.active_task_one_hot
+    task_gt = env.active_task_one_hot_gt
     z, latent_info = agent.get_latent(t)
 
     if animated:
@@ -51,6 +53,7 @@ def rollout(env,
         next_o, r, d, env_info = env.step(a)
         observations.append(agent.observation_space.flatten(o))
         tasks.append(t)
+        tasks_gt.append(task_gt)
         # z = latent_info["mean"]
         latents.append(agent.latent_space.flatten(z))
         latent_infos.append(latent_info)
@@ -74,6 +77,7 @@ def rollout(env,
         actions=tensor_utils.stack_tensor_list(actions),
         rewards=tensor_utils.stack_tensor_list(rewards),
         tasks=tensor_utils.stack_tensor_list(tasks),
+        tasks_gt=tensor_utils.stack_tensor_list(tasks_gt),
         latents=tensor_utils.stack_tensor_list(latents),
         latent_infos=tensor_utils.stack_tensor_dict_list(latent_infos),
         agent_infos=tensor_utils.stack_tensor_dict_list(agent_infos),
@@ -135,8 +139,8 @@ class TaskEmbeddingSampler(BatchSampler):
         returns = []
 
         max_path_length = self.algo.max_path_length
-        action_space = self.algo.env_spec.action_space
-        observation_space = self.algo.env_spec.observation_space
+        action_space = self.algo.env.action_space
+        observation_space = self.algo.env.observation_space
 
         if hasattr(self.algo.baseline, "predict_n"):
             all_path_baselines = self.algo.baseline.predict_n(paths)
@@ -217,6 +221,72 @@ class TaskEmbeddingSampler(BatchSampler):
             cpu_adv = utils.shift_advantages_to_positive(cpu_adv)
         #####################################
 
+        # Hindsight trajectories ##############################
+        hindsight_data = []
+        all_tasks_one_hots = self.env.env.all_task_one_hots
+        assemble_set = [
+            (all_tasks_one_hots[0], all_tasks_one_hots[1]),
+            # (all_tasks_one_hots[1, :], all_tasks_one_hots[0, :])
+        ]
+        concated_tasks = [
+            np.concatenate([all_tasks_one_hots[0], all_tasks_one_hots[1]], axis=0)
+            # np.concatenate([all_tasks_one_hots[1, :], all_tasks_one_hots[0, :]], axis=0)
+        ]
+        assemble_1_done = False
+        assemble_2_done = False
+        for path in paths:
+            # Hard code everything for now... No time before deadline
+            # TODO cleanup
+            if path['tasks'][0].all() == all_tasks_one_hots[0].all() and not assemble_1_done:
+                # search for the seconde traj to assemble
+                for _path in paths:
+                    if _path['tasks'][0].all() == all_tasks_one_hots[1].all():
+                        # concat obs, task inputs and actions sequence
+                        distance = np.linalg.norm(path['observations'][-1, :] - _path['observations'][0, :])
+                        learning_rate = (-np.tanh(distance) / 2. + 1)
+                        if learning_rate <= 0.5:
+                            learning_rate = 0.
+                            break
+                        second_traj = _path['observations'].copy()
+                        second_traj[:, 2:] = path['observations'][:, 2:]
+                        concat_obs = np.vstack((path['observations'], second_traj))
+                        concat_act = np.vstack((path['actions'], _path['actions']))
+                        concat_tasks = np.array([np.copy(concated_tasks[0]) for i in range(len(concat_obs))])
+                        concat_lr = np.array([learning_rate for i in range(len(concat_obs))])
+                        concat_path = dict(
+                            observations=concat_obs,
+                            actions=concat_act,
+                            tasks=concat_tasks,
+                            hs_lr=concat_lr[:, np.newaxis],
+                        )
+                        hindsight_data.append(concat_path)
+            if len(hindsight_data) > 100:
+                break
+            # if path['tasks'][0] == all_tasks_one_hots[1, :] and not assemble_2_done:
+            #     for _path in paths:
+            #         if _path['tasks'][0] == all_tasks_one_hots[0, :] and path['observations'][-1] == _path['obsveration'][0]:
+            #             pass # concat
+        print(len(hindsight_data))
+        tabular.record('Hindsight_data_len', len(hindsight_data))
+        # process hindsight data like sampled data
+        hindsight_obs = [path["observations"] for path in hindsight_data]
+        hindsight_obs = tensor_utils.pad_tensor_n(hindsight_obs, max_path_length*2)
+
+        hindsight_actions = [path["actions"] for path in hindsight_data]
+        hindsight_actions = tensor_utils.pad_tensor_n(hindsight_actions, max_path_length*2)
+
+        hindsight_tasks = [path["tasks"] for path in hindsight_data]
+        hindsight_tasks = tensor_utils.pad_tensor_n(hindsight_tasks, max_path_length*2)
+
+        hindsight_lr = [path['hs_lr'] for path in hindsight_data]
+        hindsight_lr = tensor_utils.pad_tensor_n(hindsight_lr, max_path_length*2)
+
+        hindsight_data = dict(
+            observations=hindsight_obs,
+            actions=hindsight_actions,
+            tasks=hindsight_tasks,
+            lr=hindsight_lr)
+
         # make all paths the same length
         obs = [path["observations"] for path in paths]
         obs = tensor_utils.pad_tensor_n(obs, max_path_length)
@@ -226,6 +296,9 @@ class TaskEmbeddingSampler(BatchSampler):
 
         tasks = [path["tasks"] for path in paths]
         tasks = tensor_utils.pad_tensor_n(tasks, max_path_length)
+
+        tasks_gt = [path['tasks_gt'] for path in paths]
+        tasks_gt = tensor_utils.pad_tensor_n(tasks_gt, max_path_length)
 
         latents = [path['latents'] for path in paths]
         latents = tensor_utils.pad_tensor_n(latents, max_path_length)
@@ -299,7 +372,8 @@ class TaskEmbeddingSampler(BatchSampler):
         )
 
         tabular.record('Iteration', itr)
-        tabular.record('AverageDiscountedReturn', average_discounted_return)
+        tabular.record('AverageDiscountedReturn',
+                              average_discounted_return)
         tabular.record('AverageReturn', np.mean(undiscounted_returns))
         tabular.record('NumTrajs', len(paths))
         tabular.record('Entropy', ent)
@@ -308,7 +382,7 @@ class TaskEmbeddingSampler(BatchSampler):
         tabular.record('MaxReturn', np.max(undiscounted_returns))
         tabular.record('MinReturn', np.min(undiscounted_returns))
 
-        return samples_data
+        return samples_data, hindsight_data
 
     #TODO: embedding-specific diagnostics
     def log_diagnostics(self, paths):

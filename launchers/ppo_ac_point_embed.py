@@ -10,7 +10,8 @@ import collections
 
 from embed2learn.algos import PPOTaskEmbedding
 from embed2learn.baselines import MultiTaskGaussianMLPBaseline
-from embed2learn.envs import PointEnv
+from embed2learn.envs.action_centric_point_env import ActionCentricPointEnv as PointEnv
+from embed2learn.envs.action_centric_point_env import Direction
 from embed2learn.envs import MultiTaskEnv
 from embed2learn.envs.multi_task_env import TfEnv
 from embed2learn.embeddings import EmbeddingSpec
@@ -53,22 +54,29 @@ def description_to_code(description, dictionary, max_sentence_length):
 
 
 N = 4
-goals = circle(3.0, N)
+# goals = circle(3.0, N)
 goal_descriptions = ['move right', 'move up', 'move left', 'move down']
+
+directions = {
+    'move right': Direction.RIGHT,
+    'move left': Direction.LEFT,
+    'move up': Direction.UP,
+    'move down': Direction.DOWN,
+}
+
 words = list(itertools.chain.from_iterable([s.split(' ') for s in goal_descriptions]))
 _, num_words, dictionary, rev_dictionary = build_dataset(words, len(words))
 max_sentence_length = 2
 word_encoding_dim = len(num_words)
 goal_codes = [description_to_code(s, dictionary, max_sentence_length) for s in goal_descriptions]
 
-# Transform all codes to one_hots
-# one_hots = codes_to_one_hots(goal_codes, dictionary)
 
 TASKS = {
     str(i + 1): {
         'args': [],
         'kwargs': {
-            'goal': g,
+            'direction': directions[goal_descriptions[i]],
+            'distance': 2.,
             'goal_description': goal_codes[i],
             'sentence_code_dim': word_encoding_dim,
             'max_sentence_length': max_sentence_length,
@@ -78,7 +86,7 @@ TASKS = {
             'random_start': False,
         }
     }
-    for i, g in enumerate(goals)
+    for i in range(len(goal_descriptions))
 }
 
 

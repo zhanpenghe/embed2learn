@@ -1,7 +1,7 @@
 from akro.tf import Box
 from garage.core import Serializable
 from garage.experiment import deterministic
-from garage.logger import tabular
+from garage.logger import logger
 from garage.misc.overrides import overrides
 from garage.tf.core import Parameterized
 from garage.tf.distributions import DiagonalGaussian
@@ -14,10 +14,10 @@ from embed2learn.tf.network_utils import mlp
 from embed2learn.tf.network_utils import parameter
 
 
-class GaussianMLPEmbedding(StochasticEmbedding, Parameterized, Serializable):
+class GaussianSentenceEmbedding(StochasticEmbedding, Parameterized, Serializable):
     def __init__(self,
                  embedding_spec,
-                 name="GaussianMLPEmbedding",
+                 name="GaussianSentenceEmbedding",
                  hidden_sizes=(32, 32),
                  learn_std=True,
                  init_std=1.0,
@@ -34,7 +34,10 @@ class GaussianMLPEmbedding(StochasticEmbedding, Parameterized, Serializable):
                  std_network=None,
                  std_parameterization='exp',
                  normalize=False,
-                 mean_output_nonlinearity=None):
+                 mean_output_nonlinearity=None,
+                 sentence_code_dim=None,
+                 max_sentence_length=None,
+                 sentence_embedding_dict_dim=10):
         """
         :param embedding_spec:
         :param hidden_sizes: list of sizes for the fully-connected hidden
@@ -92,6 +95,8 @@ class GaussianMLPEmbedding(StochasticEmbedding, Parameterized, Serializable):
         self._std_parameterization = std_parameterization
         self._normalize = normalize
         self._mean_output_nonlinearity = mean_output_nonlinearity
+        self._sentence_code_dim = sentence_code_dim
+        self._sentence_embedding_dict_dim = sentence_embedding_dict_dim
 
         if self._normalize:
             latent_dim = self.latent_space.flat_dim
@@ -122,8 +127,8 @@ class GaussianMLPEmbedding(StochasticEmbedding, Parameterized, Serializable):
         # Build default graph
         with self._name_scope:
             # inputs
-            self._input = self.input_space.new_tensor_variable(
-                name="input", extra_dims=1)
+            # self._input = self.input_space.new_tensor_variable(name="input", extra_dims=2)
+            self._input = tf.placeholder(shape=[None, max_sentence_length, sentence_code_dim], dtype=tf.float32, name='embed_inputs')
 
             with tf.name_scope("default", values=[self._input]):
                 # network
@@ -176,6 +181,14 @@ class GaussianMLPEmbedding(StochasticEmbedding, Parameterized, Serializable):
         small = 1e-5
 
         with self._variable_scope:
+            with tf.variable_scope("word2vec"):
+                lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(num_units=self._sentence_embedding_dict_dim)
+                # self._batch_size = tf.placeholder(dtype=tf.float32)
+                # initial_state = lstm_cell.zero_state(self._batch_size, tf.float32)
+                # Use zeros as zero_state, this is easier since batch_size is unknown
+                # beforehand.
+                input_vec = tf.nn.dynamic_rnn(lstm_cell, from_input, dtype=tf.float32)[0][:, -1]
+
             with tf.variable_scope("dist_params"):
                 if self._std_share_network:
                     # mean and std networks share an MLP
@@ -187,7 +200,7 @@ class GaussianMLPEmbedding(StochasticEmbedding, Parameterized, Serializable):
                         axis=0)
                     b = tf.constant_initializer(b)
                     mean_std_network = mlp(
-                        with_input=from_input,
+                        with_input=input_vec,
                         output_dim=latent_dim * 2,
                         hidden_sizes=self._hidden_sizes,
                         hidden_nonlinearity=self._hidden_nonlinearity,
@@ -204,7 +217,7 @@ class GaussianMLPEmbedding(StochasticEmbedding, Parameterized, Serializable):
                     # separate MLPs for mean and std networks
                     # mean network
                     mean_network = mlp(
-                        with_input=from_input,
+                        with_input=input_vec,
                         output_dim=latent_dim,
                         hidden_sizes=self._hidden_sizes,
                         hidden_nonlinearity=self._hidden_nonlinearity,
@@ -215,7 +228,7 @@ class GaussianMLPEmbedding(StochasticEmbedding, Parameterized, Serializable):
                     if self._adaptive_std:
                         b = tf.constant_initializer(self._init_std_param)
                         std_network = mlp(
-                            with_input=from_input,
+                            with_input=input_vec,
                             output_dim=latent_dim,
                             hidden_sizes=self._std_hidden_sizes,
                             hidden_nonlinearity=self._std_hidden_nonlinearity,
@@ -225,7 +238,7 @@ class GaussianMLPEmbedding(StochasticEmbedding, Parameterized, Serializable):
                     else:
                         p = tf.constant_initializer(self._init_std_param)
                         std_network = parameter(
-                            with_input=from_input,
+                            with_input=input_vec,
                             length=latent_dim,
                             initializer=p,
                             trainable=self._learn_std,
@@ -303,8 +316,8 @@ class GaussianMLPEmbedding(StochasticEmbedding, Parameterized, Serializable):
         # rnd = np.random.normal(size=mean.shape)
         # latent = rnd * np.exp(log_std) + mean
         # return latent, dict(mean=mean, log_std=log_std)
-        flat_in = self.input_space.flatten(an_input)
-        latent, mean, log_std = [x[0] for x in self._f_dist([flat_in])]
+        # flat_in = self.input_space.flatten(an_input)
+        latent, mean, log_std = [x[0] for x in self._f_dist([an_input])]
         return latent, dict(mean=mean, log_std=log_std)
 
     def get_latents(self, inputs):
@@ -313,8 +326,8 @@ class GaussianMLPEmbedding(StochasticEmbedding, Parameterized, Serializable):
         # rnd = np.random.normal(size=means.shape)
         # latents = rnd * np.exp(log_stds) + means
         # return latents, dict(mean=means, log_std=log_stds)
-        flat_in = self.input_space.flatten_n(inputs)
-        latents, means, log_stds = self._f_dist(flat_in)
+        # flat_in = self.input_space.flatten_n(inputs)
+        latents, means, log_stds = self._f_dist(inputs)
         return latents, dict(mean=means, log_std=log_stds)
 
     def get_reparam_latent_sym(self,
@@ -375,7 +388,6 @@ class GaussianMLPEmbedding(StochasticEmbedding, Parameterized, Serializable):
         with tf.name_scope(name, "entropy_sym_sampled", [dist_info_vars]):
             return self._dist.entropy_sym(dist_info_vars)
 
+    # deprecated
     def log_diagnostics(self):
-        log_stds = np.vstack(
-            [path["agent_infos"]["log_std"] for path in paths])
-        tabular.record('AverageEmbeddingStd', np.mean(np.exp(log_stds)))
+        pass

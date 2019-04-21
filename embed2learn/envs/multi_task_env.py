@@ -9,6 +9,16 @@ import gym
 import numpy as np
 
 
+def codes_to_one_hots(code, dictionary):
+    n_vocab = len(dictionary.keys())
+    oh_encoding = np.zeros(
+        shape=(len(code), n_vocab),
+        dtype=np.float32
+    )
+    oh_encoding[np.arange(len(code)), code] = 1.
+    return oh_encoding
+
+
 def round_robin(num_tasks, last_task):
     if last_task is None:
         return 0
@@ -22,18 +32,20 @@ def uniform_random(num_tasks, last_task):
 
 class MultiTaskEnv(gym.Env, Serializable):
     def __init__(self,
+                 dictionary=None,
                  task_selection_strategy=round_robin,
                  task_env_cls=None,
                  task_args=None,
                  task_kwargs=None):
         Serializable.quick_init(self, locals())
-
+        self._dictionary = dictionary
         self._task_envs = [
             task_env_cls(*t_args, **t_kwargs)
             for t_args, t_kwargs in zip(task_args, task_kwargs)
         ]
         self._task_selection_strategy = task_selection_strategy
         self._active_task = None
+        self._all_one_hots = None
 
     def reset(self, **kwargs):
         self._active_task = self._task_selection_strategy(
@@ -62,21 +74,43 @@ class MultiTaskEnv(gym.Env, Serializable):
 
     @property
     def task_space(self):
-        n = len(self._task_envs)
-        one_hot_ub = np.ones(n)
+        t = self.active_task or 0
+        n = self._task_envs[t]._max_sentence_length
+        one_hot_ub = np.ones(n) * (self._task_envs[t]._sentence_code_dim - 1)
         one_hot_lb = np.zeros(n)
         return gym.spaces.Box(one_hot_lb, one_hot_ub, dtype=np.float32)
+        # return {
+        #     'sentence_code_dim': self._task_envs[t]._sentence_code_dim,
+        #     'max_sentence_length': self._task_envs[t]._max_sentence_length
+        # }
 
     @property
     def active_task(self):
         return self._active_task
 
     @property
-    def active_task_one_hot(self):
-        one_hot = np.zeros(self.task_space.shape)
+    def all_task_one_hots(self):
+        if self._all_one_hots is None:
+            self._all_one_hots = [
+                codes_to_one_hots(e._goal_description, self._dictionary)
+                for e in self._task_envs
+            ]
+        return self._all_one_hots
+
+    @property
+    def active_task_one_hot_gt(self):
+        one_hot = np.zeros(len(self._task_envs))
         t = self.active_task or 0
-        one_hot[t] = self.task_space.high[t]
+        one_hot[t] = 1
         return one_hot
+
+    @property
+    def active_task_one_hot(self):
+        t = self.active_task or 0
+        goal_description = self._task_envs[t]._goal_description
+        one_hot = codes_to_one_hots(goal_description, self._dictionary)
+        return one_hot
+        # return np.array(self._task_envs[t]._goal_description, np.int32)
 
     @property
     def active_env(self):
@@ -101,8 +135,16 @@ class TfEnv(BaseTfEnv):
         return self._to_akro_space(self.env.task_space)
 
     @property
+    def all_task_one_hots(self):
+        return self.env.all_task_one_hots
+
+    @property
     def active_task_one_hot(self):
         return self.env.active_task_one_hot
+    
+    @property
+    def active_task_one_hot_gt(self):
+        return self.env.active_task_one_hot_gt
 
     @property
     def active_task(self):
@@ -121,6 +163,10 @@ class NormalizedMultiTaskEnv(NormalizedEnv, Serializable):
     @property
     def active_task_one_hot(self):
         return self.env.active_task_one_hot
+
+    @property
+    def active_task_one_hot_gt(self):
+        return self.env.active_task_one_hot_gt
 
     @property
     def active_task(self):
