@@ -180,16 +180,27 @@ class GaussianSentenceEmbedding(StochasticEmbedding, Parameterized, Serializable
         with self._variable_scope:
             with tf.variable_scope("word2vec"):
                 lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(num_units=self._sentence_embedding_dict_dim)
-                self.sentence_embedding_dict = tf.Variable(np.zeros((self._sentence_code_dim, self._sentence_embedding_dict_dim)), dtype=tf.float32)
+                self.sentence_embedding_dict = tf.get_variable("embedding_dict",
+                                                               shape=(self._sentence_code_dim, self._sentence_embedding_dict_dim), 
+                                                               dtype=tf.float32,
+                                                               trainable=True,
+                                                               initializer=tf.zeros_initializer())
+                # self.sentence_embedding_dict = tf.Variable(tf.random_uniform([self._sentence_code_dim, self._sentence_embedding_dict_dim], -1.0, 1.0), dtype=tf.float32) 
 
                 # (bs, max_sentence_len, sentence_embedding_dict_dim)
                 self.sentence_embedding = tf.nn.embedding_lookup(params=self.sentence_embedding_dict,
                                                                  ids=from_input)
 
                 data_mask = tf.cast(from_input, tf.bool)
+
                 data_len = tf.reduce_sum(tf.cast(data_mask, tf.int32), axis=1)
+
+
                 initial_state = lstm_cell.zero_state(tf.shape(self.sentence_embedding)[0], tf.float32)
-                input_vec = tf.nn.dynamic_rnn(lstm_cell, self.sentence_embedding, sequence_length=data_len, initial_state=initial_state)[0][:, -1]
+
+                input_vec, _ = tf.nn.dynamic_rnn(lstm_cell, self.sentence_embedding, sequence_length=data_len, initial_state=initial_state)
+
+                input_vec = input_vec[:, 1]
 
             with tf.variable_scope("dist_params"):
                 if self._std_share_network:
