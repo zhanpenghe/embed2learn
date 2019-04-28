@@ -180,7 +180,11 @@ class GaussianSentenceEmbedding(StochasticEmbedding, Parameterized, Serializable
         with self._variable_scope:
             with tf.variable_scope("word2vec"):
                 lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(num_units=self._sentence_embedding_dict_dim)
-                self.sentence_embedding_dict = tf.Variable(np.zeros((self._sentence_code_dim, self._sentence_embedding_dict_dim)), dtype=tf.float32)
+                self.sentence_embedding_dict = tf.get_variable(name='embedding_dict',
+                                                               shape=(self._sentence_code_dim, self._sentence_embedding_dict_dim),
+                                                               dtype=tf.float32,
+                                                               initializer=tf.zeros_initializer(),
+                                                               trainable=True)
 
                 # (bs, max_sentence_len, sentence_embedding_dict_dim)
                 self.sentence_embedding = tf.nn.embedding_lookup(params=self.sentence_embedding_dict,
@@ -189,7 +193,10 @@ class GaussianSentenceEmbedding(StochasticEmbedding, Parameterized, Serializable
                 data_mask = tf.cast(from_input, tf.bool)
                 data_len = tf.reduce_sum(tf.cast(data_mask, tf.int32), axis=1)
                 initial_state = lstm_cell.zero_state(tf.shape(self.sentence_embedding)[0], tf.float32)
-                input_vec = tf.nn.dynamic_rnn(lstm_cell, self.sentence_embedding, sequence_length=data_len, initial_state=initial_state)[0][:, -1]
+                input_vec = tf.nn.dynamic_rnn(lstm_cell, self.sentence_embedding, sequence_length=data_len, initial_state=initial_state, dtype=tf.float32)[0][:, 1] # change to gather_nd
+                # input_vec = tf.cond(tf.shape(input_vec)[0] < 10,
+                #                     lambda: tf.Print(input_vec, ['input', from_input, 'embedding_dict', self.sentence_embedding_dict], summarize=999),
+                #                     lambda: input_vec)
 
             with tf.variable_scope("dist_params"):
                 if self._std_share_network:
