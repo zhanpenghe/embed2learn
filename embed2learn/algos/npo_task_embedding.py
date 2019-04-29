@@ -107,7 +107,8 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
             super().__init__(env_spec=env.spec, policy=policy, baseline=baseline, **kwargs)
 
     @overrides
-    def train_once(self, itr, paths, hindsight_data):
+    def train_once(self, itr, paths):
+        paths, hindsight_data = paths
         itr_start_time = time.time()
         with logger.prefix('itr #%d | ' % itr):
             self.log_diagnostics(paths)

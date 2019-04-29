@@ -224,48 +224,43 @@ class TaskEmbeddingSampler(BatchSampler):
         # Hindsight trajectories ##############################
         hindsight_data = []
         all_tasks_one_hots = self.env.env.all_task_one_hots
-        assemble_set = [
-            (all_tasks_one_hots[0], all_tasks_one_hots[1]),
-            # (all_tasks_one_hots[1, :], all_tasks_one_hots[0, :])
-        ]
-        concated_tasks = [
-            np.concatenate([all_tasks_one_hots[0], all_tasks_one_hots[1]], axis=0)
-            # np.concatenate([all_tasks_one_hots[1, :], all_tasks_one_hots[0, :]], axis=0)
-        ]
-        assemble_1_done = False
-        assemble_2_done = False
-        for path in paths:
-            # Hard code everything for now... No time before deadline
-            # TODO cleanup
-            if path['tasks'][0].all() == all_tasks_one_hots[0].all() and not assemble_1_done:
-                # search for the seconde traj to assemble
-                for _path in paths:
-                    if _path['tasks'][0].all() == all_tasks_one_hots[1].all():
-                        # concat obs, task inputs and actions sequence
-                        distance = np.linalg.norm(path['observations'][-1, :] - _path['observations'][0, :])
-                        learning_rate = (-np.tanh(distance) / 2. + 1)
-                        if learning_rate <= 0.5:
-                            learning_rate = 0.
+        while len(hindsight_data) <= 100:
+            success = False
+            task1_id = int(np.random.rand() * len(all_tasks_one_hots))
+            task2_id = int(np.random.rand() * len(all_tasks_one_hots))
+            concated_task = np.concatenate([all_tasks_one_hots[task1_id], all_tasks_one_hots[task2_id]], axis=0)
+            for path in paths:
+                # Hard code everything for now... No time before deadline
+                # TODO cleanup
+                if path['tasks'][0].all() == all_tasks_one_hots[task1_id].all():
+                    # search for the seconde traj to assemble
+                    for _path in paths:
+                        if _path['tasks'][0].all() == all_tasks_one_hots[task2_id].all():
+                            # concat obs, task inputs and actions sequence
+                            distance = np.linalg.norm(path['observations'][-1, :] - _path['observations'][0, :])
+                            learning_rate = (-np.tanh(distance) / 2. + 1)
+                            if learning_rate <= 0.5:
+                                learning_rate = 0.
+                                break
+                            second_traj = _path['observations'].copy()
+                            second_traj[:, 2:] = path['observations'][:, 2:]
+                            concat_obs = np.vstack((path['observations'], second_traj))
+                            concat_act = np.vstack((path['actions'], _path['actions']))
+                            concat_tasks = np.array([np.copy(concated_task) for i in range(len(concat_obs))])
+                            concat_lr = np.array([learning_rate for i in range(len(concat_obs))])
+                            concat_path = dict(
+                                observations=concat_obs,
+                                actions=concat_act,
+                                tasks=concat_tasks,
+                                hs_lr=concat_lr[:, np.newaxis],
+                            )
+                            hindsight_data.append(concat_path)
+                            success = True
                             break
-                        second_traj = _path['observations'].copy()
-                        second_traj[:, 2:] = path['observations'][:, 2:]
-                        concat_obs = np.vstack((path['observations'], second_traj))
-                        concat_act = np.vstack((path['actions'], _path['actions']))
-                        concat_tasks = np.array([np.copy(concated_tasks[0]) for i in range(len(concat_obs))])
-                        concat_lr = np.array([learning_rate for i in range(len(concat_obs))])
-                        concat_path = dict(
-                            observations=concat_obs,
-                            actions=concat_act,
-                            tasks=concat_tasks,
-                            hs_lr=concat_lr[:, np.newaxis],
-                        )
-                        hindsight_data.append(concat_path)
-            if len(hindsight_data) > 100:
-                break
-            # if path['tasks'][0] == all_tasks_one_hots[1, :] and not assemble_2_done:
-            #     for _path in paths:
-            #         if _path['tasks'][0] == all_tasks_one_hots[0, :] and path['observations'][-1] == _path['obsveration'][0]:
-            #             pass # concat
+
+                if success:
+                    break
+
         print(len(hindsight_data))
         tabular.record('Hindsight_data_len', len(hindsight_data))
         # process hindsight data like sampled data
