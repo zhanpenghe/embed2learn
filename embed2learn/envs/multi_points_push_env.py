@@ -37,6 +37,9 @@ TASKS = [
     'destination_label': 'red'}
 ]
 
+max_sentence_length=6
+sentence_code_dim=8
+
 def code_to_one_hot_matrix(code, sentence_code_dim):
     n_vocab = sentence_code_dim
     oh_encoding = np.zeros(
@@ -60,14 +63,10 @@ def dist_point2seg(A, B, P):
 class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
     def __init__(
                 self,
-                max_sentence_length=6,
-                sentence_code_dim=8,
+                max_sentence_length=max_sentence_length,
+                sentence_code_dim=sentence_code_dim,
                 tasks=TASKS,
                 objects=objects,
-                # dictionary=None,
-                # task_env_cls=None,
-                # task_args=None,
-                # task_kwargs=None,
         ):
 
         # initialize ezpickle
@@ -77,9 +76,7 @@ class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
         self.prev_action = None
 
 
-        # TODO: hard code zone
-        # - num_tasks
-        self.num_objects = N # TODO
+        self.num_objects = N
         self.tasks = tasks
         self.num_tasks = len(tasks)
 
@@ -90,9 +87,6 @@ class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
         # Task Selection
         self.active_task = None
         self._task_selection = itertools.cycle(range(self.num_tasks))
-
-        # Helper
-        # self.vectorizer = vectorizer
 
         # Process Objects
         self.objects = objects
@@ -110,7 +104,6 @@ class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
         mujoco_env.MujocoEnv.__init__(self, mujoco_path, frame_skip)
 
 
-    # New!
     @property
     def all_task_one_hots(self):
         if self._all_one_hots is None:
@@ -120,12 +113,10 @@ class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
             ]
         return self._all_one_hots
 
-    # New!
     def reset(self):
         self.active_task = next(self._task_selection)
         return super().reset()
 
-    # New!
     @property
     def active_task_one_hot_gt(self):
         one_hot = np.zeros(self.num_objects)
@@ -133,7 +124,6 @@ class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
         one_hot[t] = 1
         return one_hot
 
-    # New!
     @property
     def active_task_one_hot(self):
         t = 0 if self.active_task is None else self.active_task
@@ -142,7 +132,6 @@ class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
         one_hot = code_to_one_hot_matrix(goal_description, self.code_sentence_dim)
         return one_hot
 
-    # New!
     @property
     def task_space(self):
         n = self.max_sentence_length
@@ -156,12 +145,10 @@ class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
     def _loc2(self, obj_name):
         return np.array(self._loc(obj_name))[:2]
 
-    # TODO
     """
     reward for active task to its object
     """
     def step(self, action, debug=False):
-        # TODO
         t = 0 if self.active_task is None else self.active_task
         task = self.tasks[t]
 
@@ -188,28 +175,6 @@ class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
         # reward2: arm to destinaton
         reward -= np.linalg.norm(arm_location - target_loc)
 
-        # for obj in range(1, N + 1):
-            # locs = {}
-            # for name in ['goal', 'obj']:
-            # for name in ['obj']:
-                # locs[name + '_joint'] = self._loc2("{}{}".format(name, obj))
-                # locs[name + '_center'] = (locs[name + '_joint'])
-
-            # obj2target = lambda goal, obj: obj + (obj - goal) / norm(obj - goal) * 0.08
-
-            # targetj = obj2target(locs['goal_joint'], locs['obj_joint'])
-
-            # dist_arm2seg = dist_point2seg(targetj, targetj, arm_location)
-
-            # Change
-            # reward only current active task
-            # if obj == self.object_name_id[task['goal_label']]:
-                # part 1: distance between object part and goal
-                # reward -= np.linalg.norm(locs['goal_center'] - locs['obj_center'])
-
-                # part 2: distance between arm and object part
-                # reward -= max(0, dist_arm2seg - 0.04)
-
         # part 3: arm preferred to be on the ground
         reward -= max(0, self.get_body_com('robot')[2] - 1.12) * 0.2
 
@@ -223,7 +188,6 @@ class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
 
         # step the environment
         self.do_simulation(action, self.frame_skip)
-
 
         # get observation
         obs = self._get_obs()
@@ -252,21 +216,13 @@ class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
 
         goal_obj_pos_arr = []
 
-
         # init arm
-        z = np.array([0])
-        rotation = np.random.uniform(low=-31.4, high=31.4, size=1)
-        obj_pos = np.concatenate([
-                    np.random.uniform(low=-0.6, high=0.6, size=1),
-                    np.random.uniform(low=-0.6, high=0.6, size=1),
-                    z,
-                    rotation,
-                ])
-        goal_obj_pos_arr.extend(obj_pos.tolist())
+        qpos[0] = np.random.uniform(low=-0.6, high=0.6)
+        qpos[1] = np.random.uniform(low=-0.6, high=0.6)
+
 
         for i in range(N):
             goal_obj_pos_arr.append(0)
-
             rotation = np.random.uniform(low=-31.4, high=31.4, size=1)
             obj_pos = np.concatenate([
                 rotation,
@@ -274,11 +230,8 @@ class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
                 np.random.uniform(low=-0.6, high=0.6, size=1)
             ])
             goal_obj_pos_arr.extend(obj_pos.tolist())
-
         
         qpos[-len(goal_obj_pos_arr):] = goal_obj_pos_arr
-
-
 
         qvel = self.init_qvel + np.random.uniform(low=-0.005, high=0.005,
                         size=self.model.nv)
@@ -293,11 +246,7 @@ class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
             self.sim.data.qvel.flat[:5],
             self._loc('robot'),
             self._loc('obj1'),
-            # self._loc('goal1'),
             self._loc('obj2'),
-            # self._loc('goal2'),
             self._loc('obj3'),
-            # self._loc('goal3'),
             self._loc('obj4'),
-            # self._loc('goal4'),
         ])
