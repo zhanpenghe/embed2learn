@@ -182,7 +182,6 @@ class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
             # Change
             # reward only current active task
             if obj == self.object_name_id[task['goal_label']]:
-                print(obj, task) 
                 # part 1: distance between object part and goal
                 reward -= np.linalg.norm(locs['goal_center'] - locs['obj_center'])
 
