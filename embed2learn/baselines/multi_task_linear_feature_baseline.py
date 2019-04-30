@@ -1,7 +1,13 @@
 import numpy as np
 
 from garage.misc.overrides import overrides
-from garage.baselines import LinearFeatureBaseline
+
+
+try:
+    import garage.np
+    from garage.np.baselines import LinearFeatureBaseline
+except ModuleNotFoundError:
+    from garage.baselines import LinearFeatureBaseline
 
 
 class MultiTaskLinearFeatureBaseline(LinearFeatureBaseline):

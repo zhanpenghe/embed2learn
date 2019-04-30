@@ -2,7 +2,16 @@ import time
 
 from garage.sampler import utils
 from garage.misc import special
-import garage.misc.logger as logger
+
+# from garage.logger import logger, tabular
+
+try:
+    import garage.logger
+    from garage.logger import logger, tabular
+except ModuleNotFoundError:
+    from garage.misc import logger
+    tabular = logger.record_tabular
+
 from garage.sampler import parallel_sampler
 from garage.sampler.stateful_pool import singleton_pool
 from garage.tf.misc import tensor_utils
@@ -221,6 +230,80 @@ class TaskEmbeddingSampler(BatchSampler):
             cpu_adv = utils.shift_advantages_to_positive(cpu_adv)
         #####################################
 
+        # Hindsight trajectories ##############################
+        hindsight_data = []
+        # all_tasks_one_hots = self.env.env.all_task_one_hots
+        all_tasks_one_hots = self.algo.env.all_task_one_hots
+
+        # assemble_set = [
+            # (all_tasks_one_hots[0], all_tasks_one_hots[1]),
+            # (all_tasks_one_hots[1, :], all_tasks_one_hots[0, :])
+        # ]
+        # concated_tasks = [
+            # np.concatenate([all_tasks_one_hots[0], all_tasks_one_hots[1]], axis=0)
+            # np.concatenate([all_tasks_one_hots[1, :], all_tasks_one_hots[0, :]], axis=0)
+        # ]
+
+
+        concated_tasks = [
+            np.concatenate([all_tasks_one_hots[1], all_tasks_one_hots[3]], axis=0)
+        ]
+
+        assemble_1_done = False
+        assemble_2_done = False
+        for path in paths:
+            # Hard code everything for now... No time before deadline
+            # TODO cleanup
+            if path['tasks'][0].all() == all_tasks_one_hots[0].all() and not assemble_1_done:
+                # search for the seconde traj to assemble
+                for _path in paths:
+                    if _path['tasks'][0].all() == all_tasks_one_hots[1].all():
+                        # concat obs, task inputs and actions sequence
+                        distance = np.linalg.norm(path['observations'][-1, :] - _path['observations'][0, :])
+                        learning_rate = (-np.tanh(distance) / 2. + 1)
+                        if learning_rate <= 0.5:
+                            learning_rate = 0.
+                            break
+                        second_traj = _path['observations'].copy()
+                        second_traj[:, 2:] = path['observations'][:, 2:]
+                        concat_obs = np.vstack((path['observations'], second_traj))
+                        concat_act = np.vstack((path['actions'], _path['actions']))
+                        concat_tasks = np.array([np.copy(concated_tasks[0]) for i in range(len(concat_obs))])
+                        concat_lr = np.array([learning_rate for i in range(len(concat_obs))])
+                        concat_path = dict(
+                            observations=concat_obs,
+                            actions=concat_act,
+                            tasks=concat_tasks,
+                            hs_lr=concat_lr[:, np.newaxis],
+                        )
+                        hindsight_data.append(concat_path)
+            if len(hindsight_data) > 100:
+                break
+            # if path['tasks'][0] == all_tasks_one_hots[1, :] and not assemble_2_done:
+            #     for _path in paths:
+            #         if _path['tasks'][0] == all_tasks_one_hots[0, :] and path['observations'][-1] == _path['obsveration'][0]:
+            #             pass # concat
+        print(len(hindsight_data))
+        tabular.record('Hindsight_data_len', len(hindsight_data))
+        # process hindsight data like sampled data
+        hindsight_obs = [path["observations"] for path in hindsight_data]
+        hindsight_obs = tensor_utils.pad_tensor_n(hindsight_obs, max_path_length*2)
+
+        hindsight_actions = [path["actions"] for path in hindsight_data]
+        hindsight_actions = tensor_utils.pad_tensor_n(hindsight_actions, max_path_length*2)
+
+        hindsight_tasks = [path["tasks"] for path in hindsight_data]
+        hindsight_tasks = tensor_utils.pad_tensor_n(hindsight_tasks, max_path_length*2)
+
+        hindsight_lr = [path['hs_lr'] for path in hindsight_data]
+        hindsight_lr = tensor_utils.pad_tensor_n(hindsight_lr, max_path_length*2)
+
+        hindsight_data = dict(
+            observations=hindsight_obs,
+            actions=hindsight_actions,
+            tasks=hindsight_tasks,
+            lr=hindsight_lr)
+
         # make all paths the same length
         obs = [path["observations"] for path in paths]
         obs = tensor_utils.pad_tensor_n(obs, max_path_length)
@@ -305,18 +388,18 @@ class TaskEmbeddingSampler(BatchSampler):
             cpu_agent_infos=cpu_agent_infos,  # DEBUG
         )
 
-        logger.record_tabular('Iteration', itr)
-        logger.record_tabular('AverageDiscountedReturn',
+        tabular.record('Iteration', itr)
+        tabular.record('AverageDiscountedReturn',
                               average_discounted_return)
-        logger.record_tabular('AverageReturn', np.mean(undiscounted_returns))
-        logger.record_tabular('NumTrajs', len(paths))
-        logger.record_tabular('Entropy', ent)
-        logger.record_tabular('Perplexity', np.exp(ent))
-        logger.record_tabular('StdReturn', np.std(undiscounted_returns))
-        logger.record_tabular('MaxReturn', np.max(undiscounted_returns))
-        logger.record_tabular('MinReturn', np.min(undiscounted_returns))
+        tabular.record('AverageReturn', np.mean(undiscounted_returns))
+        tabular.record('NumTrajs', len(paths))
+        tabular.record('Entropy', ent)
+        tabular.record('Perplexity', np.exp(ent))
+        tabular.record('StdReturn', np.std(undiscounted_returns))
+        tabular.record('MaxReturn', np.max(undiscounted_returns))
+        tabular.record('MinReturn', np.min(undiscounted_returns))
 
-        return samples_data
+        return samples_data, hindsight_data
 
     #TODO: embedding-specific diagnostics
     def log_diagnostics(self, paths):

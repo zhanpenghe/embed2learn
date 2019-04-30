@@ -8,10 +8,10 @@ import tensorflow as tf
 import itertools
 import collections
 
-from pathlib import Path
 from embed2learn.algos import PPOTaskEmbedding
 from embed2learn.baselines import MultiTaskGaussianMLPBaseline
-from embed2learn.envs import PointEnv
+from embed2learn.envs.action_centric_point_env import ActionCentricPointEnv as PointEnv
+from embed2learn.envs.action_centric_point_env import Direction
 from embed2learn.envs import MultiTaskEnv
 from embed2learn.envs.multi_task_env import TfEnv
 from embed2learn.embeddings import EmbeddingSpec
@@ -20,9 +20,6 @@ from embed2learn.embeddings.utils import concat_spaces
 from embed2learn.experiment import TaskEmbeddingRunner
 from embed2learn.policies import GaussianMLPMultitaskPolicy
 from embed2learn.samplers import TaskEmbeddingSampler
-from embed2learn.util import TaskDescriptionVectorizer
-
-
 
 
 def circle(r, n):
@@ -57,42 +54,29 @@ def description_to_code(description, dictionary, max_sentence_length):
 
 
 N = 4
-goals = circle(3.0, N)
-
-datadir = Path(".")
-
-# with open(datadir / "goal_descriptions.txt") as f:
-    # goal_descriptions = [l.strip() for l in f]
-
+# goals = circle(3.0, N)
 goal_descriptions = ['move right', 'move up', 'move left', 'move down']
-task_description_vectorizer = TaskDescriptionVectorizer(
-        corpus=goal_descriptions,
-        max_sentence_length=2
-    )
 
-sentence_code_dim = task_description_vectorizer.sentence_code_dim
-word_encoding_dim = task_description_vectorizer.sentence_code_dim
+directions = {
+    'move right': Direction.RIGHT,
+    'move left': Direction.LEFT,
+    'move up': Direction.UP,
+    'move down': Direction.DOWN,
+}
 
-max_sentence_length = task_description_vectorizer.max_sentence_length
-
-
-
-goal_codes = task_description_vectorizer.transform(goal_descriptions)
-dictionary = task_description_vectorizer.dictionary
-# goal_codes = [description_to_code(s, dictionary, max_sentence_length) for s in goal_descriptions]
-
-
-
-
-# Transform all codes to one_hots
-# one_hots = codes_to_one_hots(goal_codes, dictionary)
+words = list(itertools.chain.from_iterable([s.split(' ') for s in goal_descriptions]))
+_, num_words, dictionary, rev_dictionary = build_dataset(words, len(words))
+max_sentence_length = 2
+word_encoding_dim = len(num_words)
+goal_codes = [description_to_code(s, dictionary, max_sentence_length) for s in goal_descriptions]
 
 
 TASKS = {
     str(i + 1): {
         'args': [],
         'kwargs': {
-            'goal': g,
+            'direction': directions[goal_descriptions[i]],
+            'distance': 2.,
             'goal_description': goal_codes[i],
             'sentence_code_dim': word_encoding_dim,
             'max_sentence_length': max_sentence_length,
@@ -102,7 +86,7 @@ TASKS = {
             'random_start': False,
         }
     }
-    for i, g in enumerate(goals)
+    for i in range(len(goal_descriptions))
 }
 
 

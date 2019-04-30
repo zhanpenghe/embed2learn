@@ -128,7 +128,7 @@ def run_task(v):
             env_spec=env.spec, extra_dims=extra)
 
         algo = PPOTaskEmbedding(
-            env=env,
+            env_spec=env.spec,
             policy=policy,
             baseline=baseline,
             inference=traj_embedding,

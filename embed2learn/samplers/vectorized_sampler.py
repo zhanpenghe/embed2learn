@@ -2,7 +2,7 @@ import itertools
 import pickle
 
 from garage.misc import tensor_utils
-import garage.misc.logger as logger
+from garage.logger import logger, tabular
 from garage.misc.overrides import overrides
 from garage.sampler import ProgBarCounter
 from garage.tf.envs import VecEnvExecutor
@@ -50,7 +50,7 @@ class VectorizedSampler(BatchSampler):
 
     @overrides
     def obtain_samples(self, itr):
-        logger.log("Obtaining samples for iteration %d..." % itr)
+        logger.log('Obtaining samples for iteration {}...'.format(itr))
         paths = []
         n_samples = 0
         obses = self.vec_env.reset()
@@ -123,8 +123,8 @@ class VectorizedSampler(BatchSampler):
 
         pbar.stop()
 
-        logger.record_tabular("PolicyExecTime", policy_time)
-        logger.record_tabular("EnvExecTime", env_time)
-        logger.record_tabular("ProcessExecTime", process_time)
+        tabular.record("PolicyExecTime", policy_time)
+        tabular.record("EnvExecTime", env_time)
+        tabular.record("ProcessExecTime", process_time)
 
         return paths

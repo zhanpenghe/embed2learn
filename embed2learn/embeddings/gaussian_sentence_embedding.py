@@ -1,7 +1,7 @@
 from akro.tf import Box
 from garage.core import Serializable
 from garage.experiment import deterministic
-from garage.misc import logger
+from garage.logger import logger, tabular
 from garage.misc.overrides import overrides
 from garage.tf.core import Parameterized
 from garage.tf.distributions import DiagonalGaussian
@@ -35,6 +35,7 @@ class GaussianSentenceEmbedding(StochasticEmbedding, Parameterized, Serializable
                  normalize=False,
                  mean_output_nonlinearity=None,
                  sentence_code_dim=None,
+                 max_sentence_length=None,
                  sentence_embedding_dict_dim=10):
         """
         :param embedding_spec:
@@ -125,7 +126,12 @@ class GaussianSentenceEmbedding(StochasticEmbedding, Parameterized, Serializable
         # Build default graph
         with self._name_scope:
             # inputs
-            self._input = self.input_space.new_tensor_variable(name="input", extra_dims=1)
+# <<<<<<< HEAD
+            # self._input = self.input_space.new_tensor_variable(name="input", extra_dims=1)
+# =======
+            # self._input = self.input_space.new_tensor_variable(name="input", extra_dims=2)
+            self._input = tf.placeholder(shape=[None, max_sentence_length, sentence_code_dim], dtype=tf.float32, name='embed_inputs')
+# >>>>>>> zp-seq
 
             with tf.name_scope("default", values=[self._input]):
                 # network
@@ -180,27 +186,35 @@ class GaussianSentenceEmbedding(StochasticEmbedding, Parameterized, Serializable
         with self._variable_scope:
             with tf.variable_scope("word2vec"):
                 lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(num_units=self._sentence_embedding_dict_dim)
-                self.sentence_embedding_dict = tf.get_variable("embedding_dict",
-                                                               shape=(self._sentence_code_dim, self._sentence_embedding_dict_dim), 
-                                                               dtype=tf.float32,
-                                                               trainable=True,
-                                                               initializer=tf.zeros_initializer())
-                # self.sentence_embedding_dict = tf.Variable(tf.random_uniform([self._sentence_code_dim, self._sentence_embedding_dict_dim], -1.0, 1.0), dtype=tf.float32) 
+# Ignore embedding, directly feed with sentence code
+# HEAD
+                # self.sentence_embedding_dict = tf.get_variable("embedding_dict",
+                #                                                shape=(self._sentence_code_dim, self._sentence_embedding_dict_dim), 
+                #                                                dtype=tf.float32,
+                #                                                trainable=True,
+                #                                                initializer=tf.zeros_initializer())
 
-                # (bs, max_sentence_len, sentence_embedding_dict_dim)
-                self.sentence_embedding = tf.nn.embedding_lookup(params=self.sentence_embedding_dict,
-                                                                 ids=from_input)
+                # # (bs, max_sentence_len, sentence_embedding_dict_dim)
+                # self.sentence_embedding = tf.nn.embedding_lookup(params=self.sentence_embedding_dict,
+                #                                                  ids=from_input)
 
-                data_mask = tf.cast(from_input, tf.bool)
+                # data_mask = tf.cast(from_input, tf.bool)
 
-                data_len = tf.reduce_sum(tf.cast(data_mask, tf.int32), axis=1)
+                # data_len = tf.reduce_sum(tf.cast(data_mask, tf.int32), axis=1)
 
 
-                initial_state = lstm_cell.zero_state(tf.shape(self.sentence_embedding)[0], tf.float32)
+                # initial_state = lstm_cell.zero_state(tf.shape(self.sentence_embedding)[0], tf.float32)
 
-                input_vec, _ = tf.nn.dynamic_rnn(lstm_cell, self.sentence_embedding, sequence_length=data_len, initial_state=initial_state)
+                # input_vec, _ = tf.nn.dynamic_rnn(lstm_cell, self.sentence_embedding, sequence_length=data_len, initial_state=initial_state)
 
-                input_vec = input_vec[:, 1]
+                # input_vec = input_vec[:, 1]
+# =======
+                # self._batch_size = tf.placeholder(dtype=tf.float32)
+                # initial_state = lstm_cell.zero_state(self._batch_size, tf.float32)
+                # Use zeros as zero_state, this is easier since batch_size is unknown
+                # beforehand.
+                input_vec = tf.nn.dynamic_rnn(lstm_cell, from_input, dtype=tf.float32)[0][:, -1]
+# zp-seq
 
             with tf.variable_scope("dist_params"):
                 if self._std_share_network:
@@ -329,8 +343,10 @@ class GaussianSentenceEmbedding(StochasticEmbedding, Parameterized, Serializable
         # rnd = np.random.normal(size=mean.shape)
         # latent = rnd * np.exp(log_std) + mean
         # return latent, dict(mean=mean, log_std=log_std)
-        flat_in = self.input_space.flatten(an_input)
-        latent, mean, log_std = [x[0] for x in self._f_dist([flat_in])]
+
+        # flat_in = self.input_space.flatten(an_input)
+        latent, mean, log_std = [x[0] for x in self._f_dist([an_input])]
+
         return latent, dict(mean=mean, log_std=log_std)
 
     def get_latents(self, inputs):
@@ -339,8 +355,10 @@ class GaussianSentenceEmbedding(StochasticEmbedding, Parameterized, Serializable
         # rnd = np.random.normal(size=means.shape)
         # latents = rnd * np.exp(log_stds) + means
         # return latents, dict(mean=means, log_std=log_stds)
-        flat_in = self.input_space.flatten_n(inputs)
-        latents, means, log_stds = self._f_dist(flat_in)
+
+        # flat_in = self.input_space.flatten_n(inputs)
+        latents, means, log_stds = self._f_dist(inputs)
+
         return latents, dict(mean=means, log_std=log_stds)
 
     def get_reparam_latent_sym(self,
@@ -401,7 +419,7 @@ class GaussianSentenceEmbedding(StochasticEmbedding, Parameterized, Serializable
         with tf.name_scope(name, "entropy_sym_sampled", [dist_info_vars]):
             return self._dist.entropy_sym(dist_info_vars)
 
+    # deprecated
     def log_diagnostics(self):
-        log_stds = np.vstack(
-            [path["agent_infos"]["log_std"] for path in paths])
-        logger.record_tabular('AverageEmbeddingStd', np.mean(np.exp(log_stds)))
+        pass
+

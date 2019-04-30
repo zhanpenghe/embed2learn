@@ -1,9 +1,9 @@
-from garage.algos import TRPO
-from garage.baselines import LinearFeatureBaseline
 from garage.envs import normalize
 from garage.envs.dm_control import DmControlEnv
 from garage.experiment import LocalRunner, run_experiment
-from garage.policies import GaussianMLPPolicy
+from garage.np.baselines import LinearFeatureBaseline
+from garage.tf.algos import TRPO
+from garage.tf.policies import GaussianMLPPolicy
 
 
 def run_task(*_):
@@ -19,7 +19,7 @@ def run_task(*_):
         baseline = LinearFeatureBaseline(env_spec=env.spec)
 
         algo = TRPO(
-            env=env,
+            env_spec=env.spec,
             policy=policy,
             baseline=baseline,
             max_path_length=100,

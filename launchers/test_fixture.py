@@ -2,7 +2,7 @@ import argparse
 
 from akro.tf import Box
 from garage.envs import EnvSpec
-from garage.misc import logger
+from garage.logger import logger, TensorBoardOutput
 import ipdb
 import numpy as np
 import tensorflow as tf
@@ -16,8 +16,10 @@ parser.add_argument("--i", dest="i", type=int)
 args = parser.parse_args()
 
 with tf.Session() as sess:
-    logger.set_tensorboard_dir("../../data/local/test_fixture/temp{}".format(
-        args.i))
+    logger.add_output(
+        TensorBoardOutput('../../data/local/test_fixture/temp{}'.format(args.i)
+    ))
+
 
     task_space = Box(low=np.array([0, 0]), high=np.array([1, 1]))
     latent_space = Box(low=np.array([-1, -1, -1]), high=np.array([1, 1, 1]))
@@ -54,7 +56,7 @@ with tf.Session() as sess:
     z = latent_space.sample()
     p.get_action_from_latent(z, o)
 
-    logger.dump_tensorboard()
+    logger.dump_all()
     ipdb.set_trace()
 
     print("done!")

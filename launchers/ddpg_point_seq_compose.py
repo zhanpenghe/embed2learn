@@ -1,8 +1,8 @@
 import os.path as osp
 
-from garage.config import LOG_DIR
+from garage.config import GARAGE_LOG_DIR
 from garage.experiment import run_experiment
-from garage.exploration_strategies import OUStrategy
+from garage.np.exploration_strategies import OUStrategy
 from garage.tf.algos import DDPG
 from garage.tf.envs import TfEnv
 from garage.tf.policies import ContinuousMLPPolicy
@@ -15,7 +15,7 @@ from embed2learn.envs import SequencePointEnv
 
 
 USE_LOG = "local/ppo-point-embed-random-start-192-polent/ppo_point_embed_random_start_192_polent_2018_08_14_17_01_37_0001"
-latent_policy_pkl = osp.join(LOG_DIR, USE_LOG, "itr_400.pkl")
+latent_policy_pkl = osp.join(GARAGE_LOG_DIR, USE_LOG, "itr_400.pkl")
 
 
 def run_task(*_):
@@ -29,20 +29,20 @@ def run_task(*_):
     action_noise = OUStrategy(env, sigma=0.8)
 
     actor_net = ContinuousMLPPolicy(
-        env_spec=env,
+        env_spec=env.spec,
         name="Actor",
         hidden_sizes=[64, 64],
         hidden_nonlinearity=tf.nn.relu,
         output_nonlinearity=tf.nn.tanh)
 
     critic_net = ContinuousMLPQFunction(
-        env_spec=env,
+        env_spec=env.spec,
         name="Critic",
         hidden_sizes=[64, 64],
         hidden_nonlinearity=tf.nn.relu)
 
     ddpg = DDPG(
-        env,
+        env.spec,
         actor=actor_net,
         actor_lr=1e-4,
         critic_lr=1e-3,

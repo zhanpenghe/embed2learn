@@ -47,6 +47,7 @@ class PointEnv(gym.Env, Serializable):
         self.zoom = 50.
         self.show_traces = show_traces
         self.random_start = random_start
+        self.max_reach_range = 5
 
         self._traces = deque(maxlen=MAX_SHOWN_TRACES)
 
@@ -77,7 +78,7 @@ class PointEnv(gym.Env, Serializable):
         a *= self._action_scale
         a = np.clip(a, self.action_space.low, self.action_space.high)
 
-        self._point = np.clip(self._point + a, -5, 5)
+        self._point = np.clip(self._point + a, -self.max_reach_range, self.max_reach_range)
         self._traces[-1].append(tuple(self._point))
 
         dist = np.linalg.norm(self._point - self._goal)

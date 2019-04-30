@@ -40,7 +40,7 @@ def run_task(v):
         baseline = GaussianMLPBaseline(env_spec=env.spec)
 
         algo = PPO(
-            env=env,
+            env_spec=env.spec,
             policy=policy,
             baseline=baseline,
             max_path_length=v.max_path_length,

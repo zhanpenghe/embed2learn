@@ -1,0 +1,124 @@
+<mujoco>
+    <!-- Default settings for different tags of the model. -->
+    <default>
+        <joint pos="0 0 0" armature="1" limited="true" damping="1000" />
+        <geom pos="0 0 0" rgba=".4 .4 .4 1" condim="3" contype="0" conaffinity="0" />
+        <motor ctrlrange="-1 1" ctrllimited="true" gear="500" />
+    </default>
+
+    <compiler inertiafromgeom="true" angle="radian" />
+    <option gravity="0 0 -2" timestep="0.01"/>
+
+    <!-- Definition of all geometric shapes and joints. -->
+    <worldbody>
+        <!-- Diffuse lighting at position (0,0,3) pointing downwards in z direction. -->
+        <light diffuse=".5 .5 .5" pos="0 0 10" dir="0 0 -1" castshadow="false" />
+        
+        <!-- Plane centered at origin with color green and size 1*1 unit^2. -->
+        <geom name="table" type="plane" size="1 1 0.1" rgba="1 1 1 1" friction="0 0 0" contype="1" conaffinity="1" />
+
+        <!-- Build walls around the plane. -->
+        <geom type="box" size="1 0.02 0.2" pos="0 1 0.1" rgba="0.2 0.2 0.2 0.7"  contype="1" conaffinity="1" />
+        <geom type="box" size="1 0.02 0.2" pos="0 -1 0.1" rgba="0.2 0.2 0.2 0.7"  contype="1" conaffinity="1" /> 
+        <geom type="box" size="0.02 1 0.2" pos="1 0 0.1" rgba="0.2 0.2 0.2 0.7"  contype="1" conaffinity="1" />
+        <geom type="box" size="0.02 1 0.2" pos="-1 0 0.1" rgba="0.2 0.2 0.2 0.7"  contype="1" conaffinity="1" />
+
+        <!-- Build robotic arms. -->
+        <body name="robot" pos="0 0 1.12">
+            <joint name="cart_slide_x" type="slide" axis="1 0 0" range="-1 1" />
+            <joint name="cart_slide_y" type="slide" axis="0 1 0" range="-1 1" />
+            <joint name="cart_slide_z" type="slide" axis="0 0 1" range="0 0.3" />
+            <joint name="cart_rotate_z" type="hinge" axis="0 0 1" range="-31.4 31.4" />
+
+            <geom name="arm" type="box" size=".1 .05 .8" pos="0 0 0" />
+            <geom name="wrist" type="box" size=".11 .06 .05" pos="0 0 -0.8" rgba=".9 .9 .9 1" contype="1" conaffinity="1" />
+
+            <body name="l_hand" pos="-0.01 0 -0.9">
+                <!-- <joint name="l_hand_slide_x" type="slide" axis="-1 0 0" range="0 0.07" /> -->
+                <geom name="l_finger" type="box" size=".01 .02 .2" density="0.001" contype="1" conaffinity="1" />
+            </body>
+            
+            <body name="r_hand" pos="0.01 0 -0.9">
+                <!-- <joint name="r_hand_slide_x" type="slide" axis="1 0 0" range="0 0.07" /> -->
+                <geom name="r_finger" type="box" size=".01 .02 .2" density="0.001" contype="1" conaffinity="1" />
+            </body>
+        </body>
+
+        <!-- Objects for the robot to push and goals for the objects. -->
+
+        <!-- Object/Goal 1 -->
+        <body name="obj1" pos="0 0 0.04">
+            <geom type="box" size="0.04 0.04 0.04" rgba="1 0 0 1" density='0.00001' contype="1" conaffinity="1" />
+            <joint name="obj1_slide_z" type="slide" axis="0 0 1" range="-10 10" damping="10.0" />
+            <joint name="obj1_rotate_z" type="hinge" axis="0 0 1" range="-31.4 31.4" />
+            <joint name="obj1_slide_x" type="slide" axis="1 0 0" range="-10 10" damping="10.0" />
+            <joint name="obj1_slide_y" type="slide" axis="0 1 0" range="-10 10" damping="10.0" />
+        </body>
+
+        <body name="goal1" pos="0 0 0.04">
+            <geom type="box" size="0.04 0.04 0.04" rgba="1 0 0 .3" density='0.00001' contype="0" conaffinity="0" />
+            <joint name="goal1_rotate_z" type="hinge" axis="0 0 1" range="-31.4 31.4" />
+            <joint name="goal1_slide_x" type="slide" axis="1 0 0" range="-10 10" damping="0.5" />
+            <joint name="goal1_slide_y" type="slide" axis="0 1 0" range="-10 10" damping="0.5" />
+        </body>
+
+        <!-- Object/Goal 2 -->
+        <body name="obj2" pos="0 0 0.04">
+            <geom type="box" size="0.04 0.04 0.04" rgba="0 .8 0 1" density='0.00001' contype="1" conaffinity="1" />
+            <joint name="obj2_slide_z" type="slide" axis="0 0 1" range="-10 10" damping="10.0" />
+            <joint name="obj2_rotate_z" type="hinge" axis="0 0 1" range="-31.4 31.4" />
+            <joint name="obj2_slide_x" type="slide" axis="1 0 0" range="-10 10" damping="10.0" />
+            <joint name="obj2_slide_y" type="slide" axis="0 1 0" range="-10 10" damping="10.0" />
+        </body>
+
+        <body name="goal2" pos="0 0 0.04">
+            <geom type="box" size="0.04 0.04 0.04" rgba="0 .8 0 .3" density='0.00001' contype="0" conaffinity="0" />
+            <joint name="goal2_rotate_z" type="hinge" axis="0 0 1" range="-31.4 31.4" />
+            <joint name="goal2_slide_x" type="slide" axis="1 0 0" range="-10 10" damping="0.5" />
+            <joint name="goal2_slide_y" type="slide" axis="0 1 0" range="-10 10" damping="0.5" />
+        </body>
+
+        <!-- Object/Goal 3 -->
+        <body name="obj3" pos="0 0 0.04">
+            <geom type="box" size="0.04 0.04 0.04" rgba="1 1 0 1" density='0.00001' contype="1" conaffinity="1" />
+            <joint name="obj3_slide_z" type="slide" axis="0 0 1" range="-10 10" damping="10.0" />
+            <joint name="obj3_rotate_z" type="hinge" axis="0 0 1" range="-31.4 31.4" />
+            <joint name="obj3_slide_x" type="slide" axis="1 0 0" range="-10 10" damping="10.0" />
+            <joint name="obj3_slide_y" type="slide" axis="0 1 0" range="-10 10" damping="10.0" />
+        </body>
+
+        <body name="goal3" pos="0 0 0.04">
+            <geom type="box" size="0.04 0.04 0.04" rgba="1 1 0 .3" density='0.00001' contype="0" conaffinity="0" />
+            <joint name="goal3_rotate_z" type="hinge" axis="0 0 1" range="-31.4 31.4" />
+            <joint name="goal3_slide_x" type="slide" axis="1 0 0" range="-10 10" damping="0.5" />
+            <joint name="goal3_slide_y" type="slide" axis="0 1 0" range="-10 10" damping="0.5" />
+        </body>
+
+        <!-- Object/Goal 4 -->
+        <body name="obj4" pos="0 0 0.04">
+            <geom type="box" size="0.04 0.04 0.04" rgba=".3 .3 1 1" density='0.00001' contype="1" conaffinity="1" />
+            <joint name="obj4_slide_z" type="slide" axis="0 0 1" range="-10 10" damping="10.0" />
+            <joint name="obj4_rotate_z" type="hinge" axis="0 0 1" range="-31.4 31.4" />
+            <joint name="obj4_slide_x" type="slide" axis="1 0 0" range="-10 10" damping="10.0" />
+            <joint name="obj4_slide_y" type="slide" axis="0 1 0" range="-10 10" damping="10.0" />
+        </body>
+
+        <body name="goal4" pos="0 0 0.04">
+            <geom type="box" size="0.04 0.04 0.04" rgba=".3 .3 1 .3" density='0.00001' contype="0" conaffinity="0" />
+            <joint name="goal4_rotate_z" type="hinge" axis="0 0 1" range="-31.4 31.4" />
+            <joint name="goal4_slide_x" type="slide" axis="1 0 0" range="-10 10" damping="0.5" />
+            <joint name="goal4_slide_y" type="slide" axis="0 1 0" range="-10 10" damping="0.5" />
+        </body>
+
+    </worldbody>
+
+    <!-- Actuators that can be controlled by action vector. -->
+    <actuator>
+        <motor joint="cart_slide_x" />
+        <motor joint="cart_slide_y" />
+        <motor joint="cart_slide_z" />
+        <motor joint="cart_rotate_z" />
+        <!-- <motor joint="l_hand_slide_x" /> -->
+        <!-- <motor joint="r_hand_slide_x" /> -->
+    </actuator>
+</mujoco>

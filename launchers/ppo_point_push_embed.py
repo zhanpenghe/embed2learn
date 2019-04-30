@@ -14,6 +14,7 @@ from embed2learn.baselines import MultiTaskGaussianMLPBaseline
 from embed2learn.envs import PointEnv
 from embed2learn.envs import MultiTaskEnv
 from embed2learn.envs.multi_task_env import TfEnv
+from embed2learn.envs import MultiPointsPushEnv
 from embed2learn.embeddings import EmbeddingSpec
 from embed2learn.embeddings import GaussianMLPEmbedding, GaussianSentenceEmbedding
 from embed2learn.embeddings.utils import concat_spaces
@@ -22,49 +23,39 @@ from embed2learn.policies import GaussianMLPMultitaskPolicy
 from embed2learn.samplers import TaskEmbeddingSampler
 from embed2learn.util import TaskDescriptionVectorizer
 
-
-
-
-def circle(r, n):
-    for t in np.arange(0, 2 * np.pi, 2 * np.pi / n):
-        yield r * np.sin(t), r * np.cos(t)
-
-def build_dataset(words, n_words):
-    """Process raw inputs into a dataset."""
-    count = [['UNK', -1]]
-    count.extend(collections.Counter(words).most_common(n_words - 1))
-    dictionary = {}
-    for word, _ in count:
-        dictionary[word] = len(dictionary)
-    data = []
-    unk_count = 0
-    for word in words:
-        index = dictionary.get(word, 0)
-        if index == 0:  # dictionary['UNK']
-            unk_count += 1
-        data.append(index)
-    count[0][1] = unk_count
-    reversed_dictionary = dict(zip(dictionary.values(), dictionary.keys()))
-    return data, count, dictionary, reversed_dictionary
-
-def description_to_code(description, dictionary, max_sentence_length):
-    code = []
-    for s in description.split(' '):
-        code.append(dictionary[s])
-    while len(code) < max_sentence_length:
-        code.append(0)
-    return code
-
+import gym
 
 N = 4
-goals = circle(3.0, N)
+# goals = circle(3.0, N)
 
-datadir = Path(".")
+input_tasks = [
+    {
+        "description": "move red",
+        "goal": "red",
+    },
+    {
+        "description": "move green",
+        "goal": "green",
+    },
+    {
+        "description": "move yellow",
+        "goal": "yellow",
+    },
+    {
+        "description": "move blue",
+        "goal": "blue",
+    },
+]
 
-# with open(datadir / "goal_descriptions.txt") as f:
-    # goal_descriptions = [l.strip() for l in f]
+goal_descriptions = [t['description'] for t in input_tasks]
 
-goal_descriptions = ['move right', 'move up', 'move left', 'move down']
+objects = [
+    "red",    # rgba 1  0  0 1
+    "green",  # rgba 0  .8 0 1
+    "yellow", # rgba 1  1  0 1
+    "blue",   # rgba .3 .3 1 1
+]
+
 task_description_vectorizer = TaskDescriptionVectorizer(
         corpus=goal_descriptions,
         max_sentence_length=2
@@ -76,51 +67,31 @@ word_encoding_dim = task_description_vectorizer.sentence_code_dim
 max_sentence_length = task_description_vectorizer.max_sentence_length
 
 
-
 goal_codes = task_description_vectorizer.transform(goal_descriptions)
 dictionary = task_description_vectorizer.dictionary
-# goal_codes = [description_to_code(s, dictionary, max_sentence_length) for s in goal_descriptions]
 
 
-
-
-# Transform all codes to one_hots
-# one_hots = codes_to_one_hots(goal_codes, dictionary)
-
-
-TASKS = {
-    str(i + 1): {
-        'args': [],
-        'kwargs': {
-            'goal': g,
-            'goal_description': goal_codes[i],
-            'sentence_code_dim': word_encoding_dim,
-            'max_sentence_length': max_sentence_length,
-            'never_done': True,
-            'completion_bonus': 0.0,
-            'action_scale': 0.1,
-            'random_start': False,
-        }
-    }
-    for i, g in enumerate(goals)
-}
+TASKS = [
+    {
+        "goal_description": task_description_vectorizer.transform_one(t["description"]),
+        "goal_label": t["goal"],
+    } for i, t in enumerate(input_tasks)
+]
 
 
 def run_task(v):
     v = SimpleNamespace(**v)
 
     with TaskEmbeddingRunner() as runner:
-        task_names = sorted(v.tasks.keys())
-        task_args = [v.tasks[t]['args'] for t in task_names]
-        task_kwargs = [v.tasks[t]['kwargs'] for t in task_names]
-
         # Environment
+        # TODO
+
         env = TfEnv(
-                MultiTaskEnv(
-                    dictionary=v.dictionary,
-                    task_env_cls=PointEnv,
-                    task_args=task_args,
-                    task_kwargs=task_kwargs))
+                MultiPointsPushEnv(
+                    tasks=TASKS
+                    )
+            )
+
 
         # Latent space and embedding specs
         # TODO(gh/10): this should probably be done in Embedding or Algo
@@ -131,8 +102,8 @@ def run_task(v):
         # trajectory space is (TRAJ_ENC_WINDOW, act_obs) where act_obs is a stacked
         # vector of flattened actions and observations
         act_lb, act_ub = env.action_space.bounds
-        act_lb_flat = env.action_space.flatten(act_lb)
-        act_ub_flat = env.action_space.flatten(act_ub)
+        # act_lb_flat = env.action_space.flatten(act_lb)
+        # act_ub_flat = env.action_space.flatten(act_ub)
         obs_lb, obs_ub = env.observation_space.bounds
         obs_lb_flat = env.observation_space.flatten(obs_lb)
         obs_ub_flat = env.observation_space.flatten(obs_ub)
@@ -234,7 +205,7 @@ config = dict(
 
 run_experiment(
     run_task,
-    exp_prefix='ppo_point_embed_sentence',
+    exp_prefix='ppo_point_push_embed_sentence',
     n_parallel=1,
     seed=1,
     variant=config,

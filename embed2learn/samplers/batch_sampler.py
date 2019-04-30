@@ -1,4 +1,5 @@
-from garage.misc import logger, special
+from garage.logger import tabular
+from garage.misc import special
 from garage.sampler import parallel_sampler
 from garage.sampler import singleton_pool
 from garage.sampler.base import BaseSampler
@@ -137,16 +138,15 @@ class BatchSampler(BaseSampler):
         else:
             ep_success = [0]
 
-        logger.record_tabular('Iteration', itr)
-        logger.record_tabular('AverageDiscountedReturn',
-                              average_discounted_return)
-        logger.record_tabular('AverageReturn', np.mean(undiscounted_returns))
-        logger.record_tabular('NumTrajs', len(paths))
-        logger.record_tabular('Entropy', ent)
-        logger.record_tabular('Perplexity', np.exp(ent))
-        logger.record_tabular('StdReturn', np.std(undiscounted_returns))
-        logger.record_tabular('MaxReturn', np.max(undiscounted_returns))
-        logger.record_tabular('MinReturn', np.min(undiscounted_returns))
-        logger.record_tabular('SuccessRate', np.mean(ep_success))
+        tabular.record('Iteration', itr)
+        tabular.record('AverageDiscountedReturn', average_discounted_return)
+        tabular.record('AverageReturn', np.mean(undiscounted_returns))
+        tabular.record('NumTrajs', len(paths))
+        tabular.record('Entropy', ent)
+        tabular.record('Perplexity', np.exp(ent))
+        tabular.record('StdReturn', np.std(undiscounted_returns))
+        tabular.record('MaxReturn', np.max(undiscounted_returns))
+        tabular.record('MinReturn', np.min(undiscounted_returns))
+        tabular.record('SuccessRate', np.mean(ep_success))
 
         return samples_data

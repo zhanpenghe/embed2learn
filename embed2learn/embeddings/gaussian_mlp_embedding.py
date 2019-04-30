@@ -1,7 +1,14 @@
 from akro.tf import Box
 from garage.core import Serializable
 from garage.experiment import deterministic
-from garage.misc import logger
+
+try:
+    import garage.logger
+    from garage.logger import logger, tabular
+except ModuleNotFoundError:
+    from garage.misc import logger
+    tabular = logger.record_tabular
+
 from garage.misc.overrides import overrides
 from garage.tf.core import Parameterized
 from garage.tf.distributions import DiagonalGaussian
@@ -12,6 +19,7 @@ import tensorflow as tf
 from embed2learn.embeddings import StochasticEmbedding
 from embed2learn.tf.network_utils import mlp
 from embed2learn.tf.network_utils import parameter
+
 
 class GaussianMLPEmbedding(StochasticEmbedding, Parameterized, Serializable):
     def __init__(self,
@@ -377,4 +385,4 @@ class GaussianMLPEmbedding(StochasticEmbedding, Parameterized, Serializable):
     def log_diagnostics(self):
         log_stds = np.vstack(
             [path["agent_infos"]["log_std"] for path in paths])
-        logger.record_tabular('AverageEmbeddingStd', np.mean(np.exp(log_stds)))
+        tabular.record('AverageEmbeddingStd', np.mean(np.exp(log_stds)))

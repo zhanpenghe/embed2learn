@@ -1,10 +1,10 @@
 from garage.experiment import LocalRunner, run_experiment
-from garage.exploration_strategies import OUStrategy
 from garage.replay_buffer import SimpleReplayBuffer
 from garage.tf.algos import DDPG
 from garage.tf.envs import TfEnv
 from garage.tf.policies import ContinuousMLPPolicy
 from garage.tf.q_functions import ContinuousMLPQFunction
+from garage.np.exploration_strategies import OUStrategy
 from sawyer.mujoco.reacher_env import SimpleReacherEnv
 import tensorflow as tf
 
@@ -38,7 +38,7 @@ def run_task(*_):
             env_spec=env.spec, size_in_transitions=int(1e6), time_horizon=100)
 
         ddpg = DDPG(
-            env,
+            env.spec,
             policy=actor_net,
             policy_lr=1e-4,
             qf=critic_net,

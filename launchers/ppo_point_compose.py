@@ -4,7 +4,7 @@ import os.path as osp
 import joblib
 import tensorflow as tf
 
-from garage.config import LOG_DIR
+from garage.config import GARAGE_LOG_DIR
 from garage.experiment import LocalRunner, run_experiment
 from garage.tf.algos import PPO
 from garage.tf.baselines import GaussianMLPBaseline
@@ -37,7 +37,7 @@ def main(latent_policy_pkl):
             baseline = GaussianMLPBaseline(env_spec=env)
 
             algo = PPO(
-                env=env,
+                env_spec=env.spec,
                 policy=policy,
                 baseline=baseline,
                 batch_size=1024,  # 4096
@@ -83,6 +83,6 @@ if __name__ == '__main__':
     log_dir = args.log_directory
 
     pickle_filename = 'itr_{}.pkl'.format(args.iteration) if args.iteration >= 0 else 'params.pkl'
-    latent_policy_pkl = osp.join(LOG_DIR, log_dir, pickle_filename)
+    latent_policy_pkl = osp.join(GARAGE_LOG_DIR, log_dir, pickle_filename)
 
     main(latent_policy_pkl)

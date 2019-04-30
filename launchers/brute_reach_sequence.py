@@ -1,6 +1,6 @@
 import os.path as osp
 
-from garage.config import LOG_DIR
+from garage.config import GARAGE_LOG_DIR
 import joblib
 import numpy as np
 import tensorflow as tf
@@ -15,7 +15,7 @@ from embed2learn.envs import DiscreteEmbeddedPolicyEnv
 # latent_policy_pkl = osp.join(LOG_DIR, USE_LOG, "itr_485.pkl")
 
 USE_LOG = "local/sawyer-reach-embed-notanh/sawyer_reach_embed_notanh_2018_08_23_12_38_13_0001"
-latent_policy_pkl = osp.join(LOG_DIR, USE_LOG, "itr_300.pkl")
+latent_policy_pkl = osp.join(GARAGE_LOG_DIR, USE_LOG, "itr_300.pkl")
 
 TASK_GOALS = [
   # (  z     x,    y)
