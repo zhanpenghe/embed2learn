@@ -62,7 +62,7 @@ objects = [
 
 task_description_vectorizer = TaskDescriptionVectorizer(
         corpus=goal_descriptions,
-        max_sentence_length=2
+        max_sentence_length=6
     )
 
 sentence_code_dim = task_description_vectorizer.sentence_code_dim
@@ -96,7 +96,9 @@ def run_task(v):
 
         env = TfEnv(
                 MultiPointsPushEnv(
-                    tasks=TASKS
+                    tasks=TASKS,
+                    sentence_code_dim=task_description_vectorizer.sentence_code_dim,
+                    max_sentence_length=task_description_vectorizer.max_sentence_length,
                     )
             )
 

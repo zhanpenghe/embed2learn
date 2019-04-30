@@ -60,6 +60,8 @@ def dist_point2seg(A, B, P):
 class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
     def __init__(
                 self,
+                max_sentence_length,
+                sentence_code_dim,
                 tasks=TASKS,
                 objects=objects,
                 # dictionary=None,
@@ -80,8 +82,8 @@ class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
         self.num_tasks = 4 # TODO
         self.num_objects = N # TODO
         self.tasks = tasks
-        self.max_sentence_length = 2
-        self.code_sentence_dim = 6
+        self.max_sentence_length = max_sentence_length
+        self.code_sentence_dim = sentence_code_dim
 
         
         # Task Selection
