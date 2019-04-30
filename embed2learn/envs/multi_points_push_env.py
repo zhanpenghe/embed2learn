@@ -60,8 +60,8 @@ def dist_point2seg(A, B, P):
 class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
     def __init__(
                 self,
-                max_sentence_length,
-                sentence_code_dim,
+                max_sentence_length=6,
+                sentence_code_dim=8,
                 tasks=TASKS,
                 objects=objects,
                 # dictionary=None,
@@ -79,9 +79,10 @@ class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
 
         # TODO: hard code zone
         # - num_tasks
-        self.num_tasks = 4 # TODO
         self.num_objects = N # TODO
         self.tasks = tasks
+        self.num_tasks = len(tasks)
+
         self.max_sentence_length = max_sentence_length
         self.code_sentence_dim = sentence_code_dim
 
@@ -250,31 +251,33 @@ class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
         self.prev_action = None
 
         goal_obj_pos_arr = []
+
+
+        # init arm
+        z = np.array([0])
+        rotation = np.random.uniform(low=-31.4, high=31.4, size=1)
+        obj_pos = np.concatenate([
+                    np.random.uniform(low=-0.5, high=0.5, size=1),
+                    np.random.uniform(low=-0.5, high=0.5, size=1),
+                    z,
+                    rotation,
+                ])
+        goal_obj_pos_arr.extend(obj_pos.tolist())
+
         for i in range(N):
             goal_obj_pos_arr.append(0)
-            while True:
-                # object and goal should have the same rotation
-                rotation = np.random.uniform(low=-31.4, high=31.4, size=1)
-                obj_pos = np.concatenate([
-                    rotation,
-                    np.random.uniform(low=-0.6, high=0.6, size=1),
-                    np.random.uniform(low=-0.6, high=0.6, size=1)
-                ])
-                # goal_pos = np.concatenate([
-                #     rotation,
-                #     np.random.uniform(low=-0.6, high=0.6, size=1),
-                #     np.random.uniform(low=-0.6, high=0.6, size=1)
-                # ])
 
-                # constrain distance to (0.1, 0.3)
-                # if np.abs(np.linalg.norm(goal_pos[1:] - obj_pos[1:]) - 0.2) < 0.1:
-                    # goal_obj_pos_arr.extend(obj_pos.tolist())
-                    # goal_obj_pos_arr.extend(goal_pos.tolist())
-                    # break
-                goal_obj_pos_arr.extend(obj_pos.tolist())
-                break
+            rotation = np.random.uniform(low=-31.4, high=31.4, size=1)
+            obj_pos = np.concatenate([
+                rotation,
+                np.random.uniform(low=-0.6, high=0.6, size=1),
+                np.random.uniform(low=-0.6, high=0.6, size=1)
+            ])
+            goal_obj_pos_arr.extend(obj_pos.tolist())
+
         
         qpos[-len(goal_obj_pos_arr):] = goal_obj_pos_arr
+        print(qpos)
 
         qvel = self.init_qvel + np.random.uniform(low=-0.005, high=0.005,
                         size=self.model.nv)
