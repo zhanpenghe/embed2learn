@@ -257,8 +257,8 @@ class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
         z = np.array([0])
         rotation = np.random.uniform(low=-31.4, high=31.4, size=1)
         obj_pos = np.concatenate([
-                    np.random.uniform(low=-0.5, high=0.5, size=1),
-                    np.random.uniform(low=-0.5, high=0.5, size=1),
+                    np.random.uniform(low=-0.6, high=0.6, size=1),
+                    np.random.uniform(low=-0.6, high=0.6, size=1),
                     z,
                     rotation,
                 ])
@@ -277,7 +277,8 @@ class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
 
         
         qpos[-len(goal_obj_pos_arr):] = goal_obj_pos_arr
-        print(qpos)
+
+
 
         qvel = self.init_qvel + np.random.uniform(low=-0.005, high=0.005,
                         size=self.model.nv)

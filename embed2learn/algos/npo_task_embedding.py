@@ -137,6 +137,7 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
             samples_data)
 
         self.train_policy_and_embedding_networks(policy_opt_input_values)
+
         self.train_inference_network(inference_opt_input_values)
 
         samples_data = self.evaluate(policy_opt_input_values, samples_data)
