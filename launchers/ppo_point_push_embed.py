@@ -30,20 +30,24 @@ N = 4
 
 input_tasks = [
     {
-        "description": "move red",
-        "goal": "red",
+        "description": "move red box towards green box",
+        "target_description": "red",
+        "destination_description": "green",
     },
     {
-        "description": "move green",
-        "goal": "green",
+        "description": "move green box towards yellow box",
+        "target_description": "green",
+        "destination_description": "yellow",
     },
     {
-        "description": "move yellow",
-        "goal": "yellow",
+        "description": "move yellow box towards blue box",
+        "target_description": "yellow",
+        "destination_description": "blue",
     },
     {
-        "description": "move blue",
-        "goal": "blue",
+        "description": "move blue box towards red box",
+        "target_description": "yellow",
+        "destination_description": "red",
     },
 ]
 
@@ -71,10 +75,14 @@ goal_codes = task_description_vectorizer.transform(goal_descriptions)
 dictionary = task_description_vectorizer.dictionary
 
 
+
+# task_description="move red box towards blue box", target_description="red", destination_description="blue"
+
 TASKS = [
     {
         "goal_description": task_description_vectorizer.transform_one(t["description"]),
-        "goal_label": t["goal"],
+        "target_label": t["target_description"],
+        "destination_label": t["destination_description"],
     } for i, t in enumerate(input_tasks)
 ]
 
@@ -91,7 +99,6 @@ def run_task(v):
                     tasks=TASKS
                     )
             )
-
 
         # Latent space and embedding specs
         # TODO(gh/10): this should probably be done in Embedding or Algo

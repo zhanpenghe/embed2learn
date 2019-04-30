@@ -21,11 +21,20 @@ objects = [
     "blue",   # rgba .3 .3 1 1
 ]
 
+# Sample Task
 TASKS = [
-    {'goal_description': [1, 3], 'goal_label': 'red'},
-    {'goal_description': [1, 4], 'goal_label': 'green'},
-    {'goal_description': [1, 2], 'goal_label': 'yellow'},
-    {'goal_description': [1, 5], 'goal_label': 'blue'},
+    {'goal_description': [3, 5, 1, 2, 6, 1],
+    'target_label': 'red',
+    'destination_label': 'green'},
+    {'goal_description': [3, 6, 1, 2, 4, 1],
+    'target_label': 'green',
+    'destination_label': 'yellow'},
+    {'goal_description': [3, 4, 1, 2, 7, 1],
+    'target_label': 'yellow',
+    'destination_label': 'blue'},
+    {'goal_description': [3, 7, 1, 2, 5, 1],
+    'target_label': 'yellow',
+    'destination_label': 'red'}
 ]
 
 def code_to_one_hot_matrix(code, sentence_code_dim):
@@ -108,7 +117,6 @@ class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
             ]
         return self._all_one_hots
 
-
     # New!
     def reset(self):
         self.active_task = next(self._task_selection)
@@ -162,31 +170,42 @@ class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
             print("Left Gripper: {}".format(self._loc("l_hand")))
             print("Right Gripper: {}".format(self._loc("r_hand")))
             print("Object 1: {}".format(self._loc("obj1")))
-            print("Goal 1: {}".format(self._loc("goal1")))
+            # print("Goal 1: {}".format(self._loc("goal1")))
 
         # calculate reward
         reward = 0
         arm_location = self._loc2("robot")
-        for obj in range(1, N + 1):
-            locs = {}
-            for name in ['goal', 'obj']:
-                locs[name + '_joint'] = self._loc2("{}{}".format(name, obj))
-                locs[name + '_center'] = (locs[name + '_joint'])
 
-            obj2target = lambda goal, obj: obj + (obj - goal) / norm(obj - goal) * 0.08
 
-            targetj = obj2target(locs['goal_joint'], locs['obj_joint'])
+        target_loc = self._loc2("obj{}".format(self.object_name_id[task['target_label']]))
+        destination_loc = self._loc2("obj{}".format(self.object_name_id[task['destination_label']]))
 
-            dist_arm2seg = dist_point2seg(targetj, targetj, arm_location)
+        # reward1: dist form target to dest
+        reward -= np.linalg.norm(destination_loc - target_loc)
+        # reward2: arm to destinaton
+        reward -= np.linalg.norm(arm_location - target_loc)
+
+        # for obj in range(1, N + 1):
+            # locs = {}
+            # for name in ['goal', 'obj']:
+            # for name in ['obj']:
+                # locs[name + '_joint'] = self._loc2("{}{}".format(name, obj))
+                # locs[name + '_center'] = (locs[name + '_joint'])
+
+            # obj2target = lambda goal, obj: obj + (obj - goal) / norm(obj - goal) * 0.08
+
+            # targetj = obj2target(locs['goal_joint'], locs['obj_joint'])
+
+            # dist_arm2seg = dist_point2seg(targetj, targetj, arm_location)
 
             # Change
             # reward only current active task
-            if obj == self.object_name_id[task['goal_label']]:
+            # if obj == self.object_name_id[task['goal_label']]:
                 # part 1: distance between object part and goal
-                reward -= np.linalg.norm(locs['goal_center'] - locs['obj_center'])
+                # reward -= np.linalg.norm(locs['goal_center'] - locs['obj_center'])
 
                 # part 2: distance between arm and object part
-                reward -= max(0, dist_arm2seg - 0.04)
+                # reward -= max(0, dist_arm2seg - 0.04)
 
         # part 3: arm preferred to be on the ground
         reward -= max(0, self.get_body_com('robot')[2] - 1.12) * 0.2
@@ -239,16 +258,19 @@ class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
                     np.random.uniform(low=-0.6, high=0.6, size=1),
                     np.random.uniform(low=-0.6, high=0.6, size=1)
                 ])
-                goal_pos = np.concatenate([
-                    rotation,
-                    np.random.uniform(low=-0.6, high=0.6, size=1),
-                    np.random.uniform(low=-0.6, high=0.6, size=1)
-                ])
+                # goal_pos = np.concatenate([
+                #     rotation,
+                #     np.random.uniform(low=-0.6, high=0.6, size=1),
+                #     np.random.uniform(low=-0.6, high=0.6, size=1)
+                # ])
+
                 # constrain distance to (0.1, 0.3)
-                if np.abs(np.linalg.norm(goal_pos[1:] - obj_pos[1:]) - 0.2) < 0.1:
-                    goal_obj_pos_arr.extend(obj_pos.tolist())
-                    goal_obj_pos_arr.extend(goal_pos.tolist())
-                    break
+                # if np.abs(np.linalg.norm(goal_pos[1:] - obj_pos[1:]) - 0.2) < 0.1:
+                    # goal_obj_pos_arr.extend(obj_pos.tolist())
+                    # goal_obj_pos_arr.extend(goal_pos.tolist())
+                    # break
+                goal_obj_pos_arr.extend(obj_pos.tolist())
+                break
         
         qpos[-len(goal_obj_pos_arr):] = goal_obj_pos_arr
 
@@ -265,11 +287,11 @@ class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
             self.sim.data.qvel.flat[:5],
             self._loc('robot'),
             self._loc('obj1'),
-            self._loc('goal1'),
+            # self._loc('goal1'),
             self._loc('obj2'),
-            self._loc('goal2'),
+            # self._loc('goal2'),
             self._loc('obj3'),
-            self._loc('goal3'),
+            # self._loc('goal3'),
             self._loc('obj4'),
-            self._loc('goal4'),
+            # self._loc('goal4'),
         ])
