@@ -306,9 +306,12 @@ class GaussianMLPPolicy(StochasticPolicy, Parameterized, Serializable):
             return new_action_var
 
     def log_diagnostics(self, paths):
-        log_stds = np.vstack(
-            [path["agent_infos"]["log_std"] for path in paths])
-        tabular.record('AveragePolicyStd', np.mean(np.exp(log_stds)))
+        try:
+            log_stds = np.vstack(
+                [path["agent_infos"]["log_std"] for path in paths])
+            tabular.record('AveragePolicyStd', np.mean(np.exp(log_stds)))
+        except:
+            pass
 
     @property
     def distribution(self):

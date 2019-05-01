@@ -4,6 +4,7 @@ from embed2learn.envs.multi_task_env import NormalizedMultiTaskEnv
 from embed2learn.envs.one_hot_multi_task_env import OneHotMultiTaskEnv
 from embed2learn.envs.point_env import PointEnv
 from embed2learn.envs.multi_points_push_env import MultiPointsPushEnv
+from embed2learn.envs.multi_points_reach_env import MultiPointsReachEnv
 
 __all__ = [
     "EmbeddedPolicyEnv",
@@ -12,4 +13,5 @@ __all__ = [
     "OneHotMultiTaskEnv",
     "PointEnv",
     "MultiPointsPushEnv",
+    "MultiPointsPointsEnv",
 ]

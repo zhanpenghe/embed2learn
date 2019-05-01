@@ -14,6 +14,7 @@ directory containing this file.
 '''
 
 from embed2learn.envs import MultiPointsPushEnv
+from embed2learn.envs import MultiPointsReachEnv
 
 import numpy as np
 import argparse
@@ -31,7 +32,8 @@ def parse_args():
 def main():
 	configs = parse_args()
 	# env = gym.make(configs.env)
-	env = MultiPointsPushEnv()
+	# env = MultiPointsPushEnv()
+	env = MultiPointsReachEnv()
 	env.reset()
 
 	t = 0
@@ -78,6 +80,7 @@ def main():
 
         # step environment and keep record of reward
 		ob, rew, done, _ = env.step(action)
+
 		rewards.append(rew)
 
         # render
@@ -89,8 +92,22 @@ def main():
 			prev_reward = rewards[-1]
 			print('[Step {:4d}] Mean Reward {:.3f}; Previous Reward {:.3f}'.format(
 				t, mean_reward, prev_reward))
-			print('robot location: {}'.format(ob[10:13]))
-			print('ball location: {}'.format(ob[13:16]))
+
+			print('robot location: {}'.format(ob[:2]))
+			print('ball location: {}'.format(ob[2:4]))
+			print('ball location: {}'.format(ob[4:6]))
+			print('ball location: {}'.format(ob[6:8]))
+			print('ball location: {}'.format(ob[8:10]))
+
+			print(np.linalg.norm(
+				env._loc2("robot") - env._loc2("obj1")
+				))
+
+
+
+			# print('robot location: {}'.format(ob[10:13]))
+			# print('ball location: {}'.format(ob[13:16]))
+
 			# if configs.env == 'ObstaclePush-v0':
 				# print('robot rotation: {}'.format(ob[-4]))
 

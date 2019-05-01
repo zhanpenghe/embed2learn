@@ -71,6 +71,7 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
                  word_encoding_dim=None,
                  sequencing_bonus=False,
                  hs_loss_coeff=1e-5,
+                 # hs_loss_coeff=0,
                  **kwargs):
         Serializable.quick_init(self, locals())
         assert env.task_space

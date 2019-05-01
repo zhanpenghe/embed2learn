@@ -265,7 +265,7 @@ class TaskEmbeddingSampler(BatchSampler):
                             learning_rate = 0.
                             break
                         second_traj = _path['observations'].copy()
-                        second_traj[:, 2:] = path['observations'][:, 2:]
+                        #second_traj[:, 2:] = path['observations'][:, 2:]
                         concat_obs = np.vstack((path['observations'], second_traj))
                         concat_act = np.vstack((path['actions'], _path['actions']))
                         concat_tasks = np.array([np.copy(concated_tasks[0]) for i in range(len(concat_obs))])

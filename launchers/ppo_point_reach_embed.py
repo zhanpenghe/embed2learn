@@ -14,7 +14,7 @@ from embed2learn.baselines import MultiTaskGaussianMLPBaseline
 from embed2learn.envs import PointEnv
 from embed2learn.envs import MultiTaskEnv
 from embed2learn.envs.multi_task_env import TfEnv
-from embed2learn.envs import MultiPointsPushEnv
+from embed2learn.envs import MultiPointsReachEnv
 from embed2learn.embeddings import EmbeddingSpec
 from embed2learn.embeddings import GaussianMLPEmbedding, GaussianSentenceEmbedding
 from embed2learn.embeddings.utils import concat_spaces
@@ -30,24 +30,20 @@ N = 4
 
 input_tasks = [
     {
-        "description": "move red box towards green box",
+        "description": "reach red",
         "target_description": "red",
-        "destination_description": "green",
     },
     {
-        "description": "move green box towards yellow box",
+        "description": "reach green",
         "target_description": "green",
-        "destination_description": "yellow",
     },
     {
-        "description": "move yellow box towards blue box",
+        "description": "reach yellow",
         "target_description": "yellow",
-        "destination_description": "blue",
     },
     {
-        "description": "move blue box towards red box",
-        "target_description": "yellow",
-        "destination_description": "red",
+        "description": "reach blue",
+        "target_description": "blue",
     },
 ]
 
@@ -82,7 +78,6 @@ TASKS = [
     {
         "goal_description": task_description_vectorizer.transform_one(t["description"]),
         "target_label": t["target_description"],
-        "destination_label": t["destination_description"],
     } for i, t in enumerate(input_tasks)
 ]
 
@@ -94,10 +89,10 @@ def run_task(v):
         # Environment
         # TODO
         env = TfEnv(
-                MultiPointsPushEnv(
-                    tasks=TASKS,
-                    sentence_code_dim=task_description_vectorizer.sentence_code_dim,
-                    max_sentence_length=task_description_vectorizer.max_sentence_length,
+                MultiPointsReachEnv(
+                        tasks=TASKS,
+                        sentence_code_dim=task_description_vectorizer.sentence_code_dim,
+                        max_sentence_length=task_description_vectorizer.max_sentence_length,
                     )
             )
 
@@ -213,7 +208,7 @@ config = dict(
 
 run_experiment(
     run_task,
-    exp_prefix='ppo_point_push_embed_sentence',
+    exp_prefix='ppo_point_reach_embed_sentence',
     n_parallel=1,
     seed=1,
     variant=config,
