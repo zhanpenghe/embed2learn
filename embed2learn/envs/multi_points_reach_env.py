@@ -14,6 +14,7 @@ import itertools
 
 # objects defined in xml
 N = 4
+
 objects = [
     "red",    # rgba 1  0  0 1
     "green",  # rgba 0  .8 0 1
@@ -73,7 +74,7 @@ class MultiPointsReachEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
                 init_qpos=None,
         ):
         self.initialized = False
-        self.is_training = True
+        self.is_training = is_training
 
         # initialize ezpickle
         utils.EzPickle.__init__(self)
@@ -107,7 +108,8 @@ class MultiPointsReachEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
         self._all_one_hots = None
 
         # initialize environment
-        mujoco_path = os.path.join(os.path.dirname(__file__), 'assets', 'multi_points_pusher.xml')
+        mujoco_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'assets', 'multi_points.xml')
+
         frame_skip = 5
         mujoco_env.MujocoEnv.__init__(self, mujoco_path, frame_skip)
 
@@ -226,34 +228,30 @@ class MultiPointsReachEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
     def reset_model(self):
         qpos = self.init_qpos
 
-        if self.random_initialize is True:
+        self.prev_action = None
 
-            self.prev_action = None
+        goal_obj_pos_arr = []
 
-            goal_obj_pos_arr = []
+        # init arm
+        qpos[0] = np.random.uniform(low=-0.6, high=0.6)
+        qpos[1] = np.random.uniform(low=-0.6, high=0.6)
+        robot_loc = qpos[:2]
 
-            # init arm
-            qpos[0] = np.random.uniform(low=-0.6, high=0.6)
-            qpos[1] = np.random.uniform(low=-0.6, high=0.6)
-            robot_loc = qpos[:2]
+        for i in range(N):
+            goal_obj_pos_arr.append(0)
+            while True:
+                obj_pos = np.concatenate([
+                    np.random.uniform(low=-31.4, high=31.4, size=1),
+                    np.random.uniform(low=-0.6, high=0.6, size=1),
+                    np.random.uniform(low=-0.6, high=0.6, size=1)
+                ])
+                _, x, y = obj_pos
+                obj_loc = np.array([x, y])
+                if not np.linalg.norm(robot_loc - obj_loc) < 0.15:
+                    goal_obj_pos_arr.extend(obj_pos.tolist())
+                    break
 
-            for i in range(N):
-                goal_obj_pos_arr.append(0)
-                while True:
-                    obj_pos = np.concatenate([
-                        np.random.uniform(low=-31.4, high=31.4, size=1),
-                        np.random.uniform(low=-0.6, high=0.6, size=1),
-                        np.random.uniform(low=-0.6, high=0.6, size=1)
-                    ])
-                    _, x, y = obj_pos
-                    obj_loc = np.array([x, y])
-                    if not np.linalg.norm(robot_loc - obj_loc) < 0.15:
-                        goal_obj_pos_arr.extend(obj_pos.tolist())
-                        break
-
-            qpos[-len(goal_obj_pos_arr):] = goal_obj_pos_arr
-        else:
-            qpos = self.init_qpos
+        qpos[-len(goal_obj_pos_arr):] = goal_obj_pos_arr
 
         qvel = self.init_qvel + np.random.uniform(low=-0.005, high=0.005,
                         size=self.model.nv)

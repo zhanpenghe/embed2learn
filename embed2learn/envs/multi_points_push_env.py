@@ -75,7 +75,6 @@ class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
         # prev action
         self.prev_action = None
 
-
         self.num_objects = N
         self.tasks = tasks
         self.num_tasks = len(tasks)
@@ -99,7 +98,7 @@ class MultiPointsPushEnv(mujoco_env.MujocoEnv, utils.EzPickle, Serializable):
         self._all_one_hots = None
 
         # initialize environment
-        mujoco_path = os.path.join(os.path.dirname(__file__), 'assets', 'multi_points_pusher.xml')
+        mujoco_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'assets', 'multi_points.xml')
         frame_skip = 5
         mujoco_env.MujocoEnv.__init__(self, mujoco_path, frame_skip)
 

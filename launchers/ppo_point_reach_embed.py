@@ -182,6 +182,7 @@ def run_task(v):
             stop_ce_gradient=True,
             max_sentence_length=max_sentence_length,
             word_encoding_dim=word_encoding_dim,
+            hs_loss_coeff=0,
         )
         runner.setup(algo, env, batch_size=v.batch_size,
             max_path_length=v.max_path_length)
@@ -206,9 +207,11 @@ config = dict(
     policy_min_std=None,
 )
 
+note = "baseline"
+
 run_experiment(
     run_task,
-    exp_prefix='ppo_point_reach_embed_sentence',
+    exp_prefix='ppo_point_reach_embed_sentence' + ("_" + note) if note else "",
     n_parallel=1,
     seed=1,
     variant=config,
