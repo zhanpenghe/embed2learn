@@ -182,7 +182,6 @@ def run_task(v):
             stop_ce_gradient=True,
             max_sentence_length=max_sentence_length,
             word_encoding_dim=word_encoding_dim,
-            hs_loss_coeff=0,
         )
         runner.setup(algo, env, batch_size=v.batch_size,
             max_path_length=v.max_path_length)
@@ -207,7 +206,7 @@ config = dict(
     policy_min_std=None,
 )
 
-note = "baseline"
+note = ""
 
 run_experiment(
     run_task,
