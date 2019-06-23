@@ -1,14 +1,12 @@
 from types import SimpleNamespace
 
 from akro.tf import Box
-from garage.envs import EnvSpec
-from garage.experiment import LocalRunner, run_experiment
+from garage.envs.env_spec import EnvSpec
+from garage.experiment import run_experiment
 import numpy as np
-import tensorflow as tf
 
 from embed2learn.algos import PPOTaskEmbedding
 from embed2learn.baselines import MultiTaskGaussianMLPBaseline
-from embed2learn.envs import PointEnv
 from embed2learn.envs import MultiTaskEnv
 from embed2learn.envs.multi_task_env import TfEnv
 from embed2learn.embeddings import EmbeddingSpec
@@ -16,43 +14,39 @@ from embed2learn.embeddings import GaussianMLPEmbedding
 from embed2learn.embeddings.utils import concat_spaces
 from embed2learn.experiment import TaskEmbeddingRunner
 from embed2learn.policies import GaussianMLPMultitaskPolicy
-from embed2learn.samplers import TaskEmbeddingSampler
 
-
-def circle(r, n):
-    for t in np.arange(0, 2 * np.pi, 2 * np.pi / n):
-        yield r * np.sin(t), r * np.cos(t)
-
-
-N = 4
-goals = circle(3.0, N)
-TASKS = {
-    str(i + 1): {
-        'args': [],
-        'kwargs': {
-            'goal': g,
-            'never_done': True,
-            'completion_bonus': 0.0,
-            'action_scale': 0.04,
-            'random_start': False,
-        }
-    }
-    for i, g in enumerate(goals)
-}
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach_6dof import SawyerReach6DOFEnv
 
 
 def run_task(v):
+
+    goal_low = np.array((-0.1, 0.8, 0.05))
+    goal_high = np.array((0.1, 0.9, 0.3))
+
+    GOALS = np.random.uniform(low=goal_low, high=goal_high, size=(4, 3)).tolist()
+    print(GOALS)
+    TASKS = {
+        str(i + 1): {
+            "args": [],
+            "kwargs": {
+                'tasks': [{'goal': tuple(g), 'obj_init_pos':np.array([0, 0.6, 0.02]), 'obj_init_angle': 0.3}],
+                'random_init': False,
+            }
+        }
+        for i, g in enumerate(GOALS)
+    }
+    v['tasks'] = TASKS
     v = SimpleNamespace(**v)
 
-    with TaskEmbeddingRunner() as runner:
-        task_names = sorted(v.tasks.keys())
-        task_args = [v.tasks[t]['args'] for t in task_names]
-        task_kwargs = [v.tasks[t]['kwargs'] for t in task_names]
+    task_names = sorted(v.tasks.keys())
+    task_args = [v.tasks[t]['args'] for t in task_names]
+    task_kwargs = [v.tasks[t]['kwargs'] for t in task_names]
 
+    with TaskEmbeddingRunner() as runner:
         # Environment
         env = TfEnv(
                 MultiTaskEnv(
-                    task_env_cls=PointEnv,
+                    task_env_cls=SawyerReach6DOFEnv,
                     task_args=task_args,
                     task_kwargs=task_kwargs))
 
@@ -89,23 +83,19 @@ def run_task(v):
         traj_embedding = GaussianMLPEmbedding(
             name="inference",
             embedding_spec=traj_embed_spec,
-            hidden_sizes=(20, 10),  # was the same size as policy in Karol's paper
+            hidden_sizes=(200, 100),  # was the same size as policy in Karol's paper
             std_share_network=True,
             init_std=2.0,
-            mean_output_nonlinearity=tf.nn.tanh,
-            min_std=v.embedding_min_std,
         )
 
         # Embeddings
         task_embedding = GaussianMLPEmbedding(
             name="embedding",
             embedding_spec=task_embed_spec,
-            hidden_sizes=(20, 20),
+            hidden_sizes=(200, 200),
             std_share_network=True,
             init_std=v.embedding_init_std,
             max_std=v.embedding_max_std,
-            mean_output_nonlinearity=tf.nn.tanh,
-            min_std=v.embedding_min_std,
         )
 
         # Multitask policy
@@ -114,15 +104,17 @@ def run_task(v):
             env_spec=env.spec,
             task_space=env.task_space,
             embedding=task_embedding,
-            hidden_sizes=(32, 16),
+            hidden_sizes=(200, 100),
             std_share_network=True,
-            max_std=v.policy_max_std,
             init_std=v.policy_init_std,
-            min_std=v.policy_min_std,
         )
 
         extra = v.latent_length + len(v.tasks)
-        baseline = MultiTaskGaussianMLPBaseline(env_spec=env.spec, extra_dims=extra)
+        baseline = MultiTaskGaussianMLPBaseline(
+            env_spec=env.spec,
+            extra_dims=extra,
+            regressor_args=dict(hidden_sizes=(200, 100)),
+        )
 
         algo = PPOTaskEmbedding(
             env_spec=env.spec,
@@ -130,39 +122,34 @@ def run_task(v):
             baseline=baseline,
             inference=traj_embedding,
             max_path_length=v.max_path_length,
+            n_itr=2000,
             discount=0.99,
             lr_clip_range=0.2,
             policy_ent_coeff=v.policy_ent_coeff,
             embedding_ent_coeff=v.embedding_ent_coeff,
             inference_ce_coeff=v.inference_ce_coeff,
-            use_softplus_entropy=False,
-            stop_ce_gradient=True,
+            use_softplus_entropy=True,
         )
-
         runner.setup(algo, env, batch_size=v.batch_size,
             max_path_length=v.max_path_length)
-        runner.train(n_epochs=600, plot=False)
+        runner.train(n_epochs=2000, plot=False)
 
 config = dict(
-    tasks=TASKS,
-    latent_length=4,
-    inference_window=8,
-    batch_size=1024 * len(TASKS),
-    policy_ent_coeff=1e-5,  # 2e-2
-    embedding_ent_coeff=1e-5,  # 1e-2
-    inference_ce_coeff=1e-3,  # 1e-2
-    max_path_length=100,
+    latent_length=3,
+    inference_window=6,
+    batch_size=4096 * 4,
+    policy_ent_coeff=5e-3,  # 1e-2
+    embedding_ent_coeff=1e-3,  # 1e-3
+    inference_ce_coeff=5e-3,  # 1e-4
+    max_path_length=200,
     embedding_init_std=1.0,
     embedding_max_std=2.0,
-    embedding_min_std=0.2,
     policy_init_std=1.0,
-    policy_max_std=None,
-    policy_min_std=None,
 )
 
 run_experiment(
     run_task,
-    exp_prefix='ppo_point_embed',
+    exp_prefix='sawyer_reach_embed_8goal',
     n_parallel=1,
     seed=1,
     variant=config,

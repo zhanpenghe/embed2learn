@@ -12,14 +12,15 @@ ipdb  = "*"
 [packages]
 akro = "*"
 baselines = {git = "git+https://github.com/openai/baselines.git@1259f6ab25c6f7261e33c4c3b92df869188f9260"}
-gym-sawyer = {path = "./external/gym-sawyer", editable = true}
+gym-sawyer = {editable = true,path = "./external/gym-sawyer"}
 # gym-sawyer = {git = "git+https://github.com/rlworkgroup/gym-sawyer.git@77cb252c02c3c9c39d78d5050bc672273447f617"}
-multiworld = {path = "./external/multiworld", editable = true}
+multiworld = {editable = true,path = "./external/multiworld"}
 # multiworld = {git = "git+https://github.com/vitchyr/multiworld.git@b073e69c6991e877723ee55f85a3dfc57bed8674"}
 numpy = "*"
 gym = "==0.10.11"
 pygame = "==1.9.4"
 rlgarage = {git = "git+https://github.com/rlworkgroup/garage.git@b70c74bb85420af99ee1aa4db10c678ddd9b5735"}
+pyquaternion = "*"
 
 [requires]
 python_version = "3.6"
