@@ -27,13 +27,13 @@ def run_task(v):
     goal_low = np.array((-0.1, 0.8, 0.05))
     goal_high = np.array((0.1, 0.9, 0.3))
 
-    GOALS = np.random.uniform(low=goal_low, high=goal_high, size=(N_TASKS, 3)).tolist()
+    GOALS = np.random.uniform(low=goal_low, high=goal_high, size=(N_TASKS, len(goal_low))).tolist()
     print(GOALS)
     TASKS = {
         str(i + 1): {
             "args": [],
             "kwargs": {
-                'tasks': [{'goal': tuple(g), 'obj_init_pos':np.array([0, 0.6, 0.02]), 'obj_init_angle': 0.3}],
+                'tasks': [{'goal': np.array(g), 'obj_init_pos':np.array([0, 0.6, 0.02]), 'obj_init_angle': 0.3}],
                 'random_init': False,
             }
         }

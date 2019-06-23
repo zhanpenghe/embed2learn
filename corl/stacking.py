@@ -33,7 +33,7 @@ def run_task(v):
         str(i + 1): {
             "args": [],
             "kwargs": {
-                'tasks': [{'goal': tuple(g), 'obj_init_pos': np.array([0, 0.6, 0.02]), 'obj_init_angle': 0.3}],
+                'tasks': [{'goal': np.array(g), 'obj_init_pos': np.array([0, 0.6, 0.02]), 'obj_init_angle': 0.3}],
                 'random_init': False,
             }
         }
