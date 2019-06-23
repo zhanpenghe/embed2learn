@@ -15,17 +15,17 @@ from embed2learn.embeddings.utils import concat_spaces
 from embed2learn.experiment import TaskEmbeddingRunner
 from embed2learn.policies import GaussianMLPMultitaskPolicy
 
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach_6dof import SawyerReach6DOFEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_window_close_6dof import SawyerWindowClose6DOFEnv
 
 
 N_TASKS = 4
-EXP_PREFIX = 'corl_te_reach6dof'
+EXP_PREFIX = 'corl_te_window_closing'
 
 
 def run_task(v):
 
-    goal_low = np.array((-0.1, 0.8, 0.05))
-    goal_high = np.array((0.1, 0.9, 0.3))
+    goal_low = np.array((-0.1, 0.78, 0.15))
+    goal_high = np.array((0.1, 0.85, 0.15))
 
     GOALS = np.random.uniform(low=goal_low, high=goal_high, size=(N_TASKS, 3)).tolist()
     print(GOALS)
@@ -33,7 +33,7 @@ def run_task(v):
         str(i + 1): {
             "args": [],
             "kwargs": {
-                'tasks': [{'goal': tuple(g), 'obj_init_pos':np.array([0, 0.6, 0.02]), 'obj_init_angle': 0.3}],
+                'tasks': [{'goal': tuple(g), 'obj_init_pos':np.array([0.1, 0.785, 0.15]), 'obj_init_angle': 0.3}],
                 'random_init': False,
             }
         }
@@ -50,7 +50,7 @@ def run_task(v):
         # Environment
         env = TfEnv(
                 MultiTaskEnv(
-                    task_env_cls=SawyerReach6DOFEnv,
+                    task_env_cls=SawyerWindowClose6DOFEnv,
                     task_args=task_args,
                     task_kwargs=task_kwargs))
 

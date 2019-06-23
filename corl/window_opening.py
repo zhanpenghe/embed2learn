@@ -19,6 +19,7 @@ from multiworld.envs.mujoco.sawyer_xyz.sawyer_window_open_6dof import SawyerWind
 
 
 N_TASKS = 4
+EXP_PREFIX = 'corl_te_window_opening'
 
 
 def run_task(v):
@@ -152,7 +153,7 @@ config = dict(
 
 run_experiment(
     run_task,
-    exp_prefix='corl_te_reach6dof',
+    exp_prefix=EXP_PREFIX,
     n_parallel=1,
     seed=1,
     variant=config,
