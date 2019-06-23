@@ -15,22 +15,23 @@ from embed2learn.embeddings.utils import concat_spaces
 from embed2learn.experiment import TaskEmbeddingRunner
 from embed2learn.policies import GaussianMLPMultitaskPolicy
 
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach_6dof import SawyerReach6DOFEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_window_open_6dof import SawyerWindowOpen6DOFEnv
+
+
+N_TASKS = 4
 
 
 def run_task(v):
 
-    goal_low = np.array((-0.1, 0.8, 0.05))
-    goal_high = np.array((0.1, 0.9, 0.3))
+    task_space = SawyerWindowOpen6DOFEnv.task_schema
+    GOALS = [task_space.sample() for _ in range(N_TASKS)]
 
-    GOALS = np.random.uniform(low=goal_low, high=goal_high, size=(4, 3)).tolist()
-    print(GOALS)
+    # since this is task based, tasks are not set in the constructor..
     TASKS = {
         str(i + 1): {
             "args": [],
             "kwargs": {
-                'tasks': [{'goal': tuple(g), 'obj_init_pos':np.array([0, 0.6, 0.02]), 'obj_init_angle': 0.3}],
-                'random_init': False,
+                'if_render': False,
             }
         }
         for i, g in enumerate(GOALS)
@@ -46,9 +47,11 @@ def run_task(v):
         # Environment
         env = TfEnv(
                 MultiTaskEnv(
-                    task_env_cls=SawyerReach6DOFEnv,
+                    task_env_cls=SawyerWindowOpen6DOFEnv,
                     task_args=task_args,
-                    task_kwargs=task_kwargs))
+                    task_kwargs=task_kwargs,
+                    sampled_tasks=GOALS,
+                    env_contains_task_schema=True,))
 
         # Latent space and embedding specs
         # TODO(gh/10): this should probably be done in Embedding or Algo
@@ -137,7 +140,7 @@ def run_task(v):
 config = dict(
     latent_length=3,
     inference_window=6,
-    batch_size=4096 * 4,
+    batch_size=4096 * N_TASKS,
     policy_ent_coeff=5e-3,  # 1e-2
     embedding_ent_coeff=1e-3,  # 1e-3
     inference_ce_coeff=5e-3,  # 1e-4
@@ -149,7 +152,7 @@ config = dict(
 
 run_experiment(
     run_task,
-    exp_prefix='sawyer_reach_embed_8goal',
+    exp_prefix='corl_te_reach6dof',
     n_parallel=1,
     seed=1,
     variant=config,

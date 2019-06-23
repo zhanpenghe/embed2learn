@@ -23,15 +23,21 @@ def uniform_random(num_tasks, last_task):
 class MultiTaskEnv(gym.Env, Serializable):
     def __init__(self,
                  task_selection_strategy=round_robin,
+                 env_contains_task_schema=False,
                  task_env_cls=None,
                  task_args=None,
-                 task_kwargs=None):
+                 task_kwargs=None,
+                 sampled_tasks=None,):
         Serializable.quick_init(self, locals())
-
         self._task_envs = [
             task_env_cls(*t_args, **t_kwargs)
             for t_args, t_kwargs in zip(task_args, task_kwargs)
         ]
+        self._env_contains_task_schema = env_contains_task_schema
+        if self._env_contains_task_schema:
+            for i, env in enumerate(self._task_envs):
+                env.task = sampled_tasks[i]
+        
         self._task_selection_strategy = task_selection_strategy
         self._active_task = None
 
