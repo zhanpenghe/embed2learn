@@ -15,30 +15,28 @@ from embed2learn.embeddings.utils import concat_spaces
 from embed2learn.experiment import TaskEmbeddingRunner
 from embed2learn.policies import GaussianMLPMultitaskPolicy
 
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_button_press_6dof import SawyerButtonPress6DOFEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_laptop_close_6dof import SawyerLaptopClose6DOFEnv
 
 
-N_TASKS = 4
-EXP_PREFIX = 'corl_te_button_pressing'
+N_TASKS = 2
+EXP_PREFIX = 'corl_te_laptop_closing'
 
 
 def run_task(v):
 
-    obj_low = np.array((-0.1, 0.8, 0.05))
-    obj_high = np.array((0.1, 0.9, 0.05))
+    hand_low = np.array((-0.5, 0.40, 0.05))
+    hand_high = np.array((0.5, 1, 0.5))
 
-    OBJ_INIT = np.random.uniform(low=obj_low, high=obj_high, size=(N_TASKS, len(obj_high))).tolist()
-    print(OBJ_INIT)
+    HAND_INITS = np.random.uniform(low=hand_low, high=hand_high, size=(N_TASKS, len(hand_low))).tolist()
+    print(HAND_INITS)
     TASKS = {
         str(i + 1): {
             "args": [],
             "kwargs": {
-                'if_render': False,
-                'tasks': [{'goal': np.array([0, 0.78, 0.12]), 'obj_init_pos': np.array(g)}],
-                'random_init': False,
+                'hand_init_pos': tuple(h),
             }
         }
-        for i, g in enumerate(OBJ_INIT)
+        for i, h in enumerate(HAND_INITS)
     }
     v['tasks'] = TASKS
     v = SimpleNamespace(**v)
@@ -51,7 +49,7 @@ def run_task(v):
         # Environment
         env = TfEnv(
                 MultiTaskEnv(
-                    task_env_cls=SawyerButtonPress6DOFEnv,
+                    task_env_cls=SawyerLaptopClose6DOFEnv,
                     task_args=task_args,
                     task_kwargs=task_kwargs))
 
