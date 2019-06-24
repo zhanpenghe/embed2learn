@@ -33,6 +33,7 @@ def run_task(v):
         str(i + 1): {
             "args": [],
             "kwargs": {
+                'random_init': False,
                 'hand_init_pos': tuple(h),
             }
         }
