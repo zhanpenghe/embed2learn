@@ -1,10 +1,10 @@
 from types import SimpleNamespace
-
+print(0)
 from akro.tf import Box
 from garage.envs.env_spec import EnvSpec
 from garage.experiment import run_experiment
 import numpy as np
-
+print(1)
 from embed2learn.algos import PPOTaskEmbedding
 from embed2learn.baselines import MultiTaskGaussianMLPBaseline
 from embed2learn.envs import MultiTaskEnv
@@ -14,18 +14,20 @@ from embed2learn.embeddings import GaussianMLPEmbedding
 from embed2learn.embeddings.utils import concat_spaces
 from embed2learn.experiment import TaskEmbeddingRunner
 from embed2learn.policies import GaussianMLPMultitaskPolicy
+print(2)
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_6dof import SawyerReachPushPickPlace6DOFEnv
-
+print(3)
 
 N_TASKS = 4
 EXP_PREFIX = 'corl_te_push6dof'
 
-
+print(4)
 def run_task(v):
-
+    print(5)
     goal_low=(-0.1, 0.8, 0.2)
     goal_high=(0.1, 0.9, 0.2)
+
 
     GOALS = np.random.uniform(low=goal_low, high=goal_high, size=(N_TASKS, len(goal_low))).tolist()
     print(GOALS)
@@ -47,7 +49,7 @@ def run_task(v):
     task_names = sorted(v.tasks.keys())
     task_args = [v.tasks[t]['args'] for t in task_names]
     task_kwargs = [v.tasks[t]['kwargs'] for t in task_names]
-
+    print(6)
     with TaskEmbeddingRunner() as runner:
         # Environment
         env = TfEnv(
@@ -136,6 +138,8 @@ def run_task(v):
             inference_ce_coeff=v.inference_ce_coeff,
             use_softplus_entropy=True,
         )
+
+        print(7)
         runner.setup(algo, env, batch_size=v.batch_size,
             max_path_length=v.max_path_length)
         runner.train(n_epochs=2000, plot=False)
@@ -153,6 +157,7 @@ config = dict(
     policy_init_std=1.0,
 )
 
+print(8)
 run_experiment(
     run_task,
     exp_prefix=EXP_PREFIX,
