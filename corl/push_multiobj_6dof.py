@@ -36,7 +36,6 @@ def run_task(v):
             "args": [],
             "kwargs": {
                 'tasks': [{'goal': np.array(g),  'obj_init_pos':np.array([0, 0.6, 0.02]), 'obj_init_angle': 0.3, 'type':'push'}],
-                'randomize_goals': False,
                 'fix_task': True,
                 'if_render': False,
             }
