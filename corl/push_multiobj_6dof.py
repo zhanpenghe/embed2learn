@@ -52,7 +52,7 @@ def run_task(v):
         # Environment
         env = TfEnv(
                 MultiTaskEnv(
-                    task_env_cls=SawyerMultiobject6DOFEnv,
+                    task_env_cls=SawyerReachPushPickPlace6DOFEnv,
                     task_args=task_args,
                     task_kwargs=task_kwargs))
 
