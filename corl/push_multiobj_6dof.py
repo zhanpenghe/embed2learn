@@ -15,17 +15,17 @@ from embed2learn.embeddings.utils import concat_spaces
 from embed2learn.experiment import TaskEmbeddingRunner
 from embed2learn.policies import GaussianMLPMultitaskPolicy
 
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_push_multiobj_6dof import SawyerMultiobject6DOFEnv
+from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_6dof import SawyerReachPushPickPlace6DOFEnv
 
 
 N_TASKS = 4
-EXP_PREFIX = 'corl_te_pushmultiobj6dof'
+EXP_PREFIX = 'corl_te_push6dof'
 
 
 def run_task(v):
 
-    goal_low = np.array((-0.1, 0.5))
-    goal_high = np.array((0.1, 0.7))
+    goal_low=(-0.1, 0.8, 0.2)
+    goal_high=(0.1, 0.9, 0.2)
 
     GOALS = np.random.uniform(low=goal_low, high=goal_high, size=(N_TASKS, len(goal_low))).tolist()
     print(GOALS)
@@ -33,9 +33,10 @@ def run_task(v):
         str(i + 1): {
             "args": [],
             "kwargs": {
-                'fixed_puck_goal': tuple(g),
+                'tasks': [{'goal': np.array(g),  'obj_init_pos':np.array([0, 0.6, 0.02]), 'obj_init_angle': 0.3, 'type':'push'}],
                 'randomize_goals': False,
-                'fixed_start': True,
+                'fix_task': True,
+                'if_render': False,
             }
         }
         for i, g in enumerate(GOALS)

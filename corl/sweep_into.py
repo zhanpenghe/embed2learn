@@ -24,8 +24,8 @@ EXP_PREFIX = 'corl_te_sweep_into_goal'
 
 def run_task(v):
 
-    goal_low = np.array((-0.25, 0.3, 0.02, -.2, .4, -0.12))
-    goal_high = np.array((0.25, 0.875, 0.02, .2, .8, -0.12))
+    goal_low = np.array((-0.2, 0.3, -0.12, -.2, .4, -0.12))
+    goal_high = np.array((0.2, 0.5, -0.12, .2, .8, -0.12))
 
     GOALS = np.random.uniform(low=goal_low, high=goal_high, size=(N_TASKS, len(goal_low))).tolist()
     print(GOALS)
