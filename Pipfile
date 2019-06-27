@@ -19,7 +19,7 @@ akro = "==0.0.2"
 numpy = "*"
 gym = "==0.10.11"
 pygame = "==1.9.4"
-rlgarage = {git = "git+https://github.com/rlworkgroup/garage.git@b70c74bb85420af99ee1aa4db10c678ddd9b5735"}
+rlgarage = {git = "git+https://github.com/rlworkgroup/garage.git@d8c279e1573ab16fa4c9ba7a89a0cc5012f0caac"}
 pyquaternion = "*"
 
 [requires]

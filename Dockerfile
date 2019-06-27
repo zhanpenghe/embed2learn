@@ -98,7 +98,7 @@ COPY Pipfile /root/code/embed2learn/Pipfile
 # In this step only the presence of the file mjkey.txt is required, so we only
 # create an empty file
 ARG MJKEY
-RUN touch /root/.mujoco/mjkey.txt 
+COPY mjkey.txt /root/.mujoco/mjkey.txt
 
 RUN wget https://www.python.org/ftp/python/3.6.3/Python-3.6.3.tgz -P /opt
 RUN tar -xvf /opt/Python-3.6.3.tgz -C /opt

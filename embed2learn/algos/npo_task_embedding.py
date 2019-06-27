@@ -21,6 +21,7 @@ from garage.tf.misc.tensor_utils import flatten_inputs
 from garage.tf.misc.tensor_utils import graph_inputs
 from garage.tf.optimizers import LbfgsOptimizer
 import numpy as np
+import scipy.stats
 import tensorflow as tf
 import tensorflow_probability as tfp
 
@@ -847,8 +848,7 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
                 raise NotImplementedError
 
             with tf.name_scope('logging'):
-                dist = tfp.distributions.MultivariateNormalDiag(
-                    loc=means, scale_diag=stds)
+                dist = scipy.stats.multivariate_normal(mean=means, cov=stds)
             tabular.record('Embedding/i={}'.format(i), dist)
 
         # TODO: find a way to do this with the new interface

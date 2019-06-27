@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "08fc2d1673961e9c10100d33585b3bc043fe03b6b3dead3d3f31df84668c6f7f"
+            "sha256": "ea703d7b25569aee3bd0d21c63def6a40603ac4ae84438f48a346747e32b9ed6"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -141,7 +141,7 @@
         },
         "rlgarage": {
             "git": "https://github.com/rlworkgroup/garage.git",
-            "ref": "b70c74bb85420af99ee1aa4db10c678ddd9b5735"
+            "ref": "d8c279e1573ab16fa4c9ba7a89a0cc5012f0caac"
         },
         "scipy": {
             "hashes": [
