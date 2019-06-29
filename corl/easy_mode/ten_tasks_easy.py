@@ -1,61 +1,37 @@
+import argparse
 from types import SimpleNamespace
-print(0)
+
 from akro.tf import Box
 from garage.envs.env_spec import EnvSpec
 from garage.experiment import run_experiment
 import numpy as np
-print(1)
+
 from embed2learn.algos import PPOTaskEmbedding
 from embed2learn.baselines import MultiTaskGaussianMLPBaseline
-from embed2learn.envs import MultiTaskEnv
+from embed2learn.envs import MultiClassMultiTaskEnv
 from embed2learn.envs.multi_task_env import TfEnv
 from embed2learn.embeddings import EmbeddingSpec
 from embed2learn.embeddings import GaussianMLPEmbedding
 from embed2learn.embeddings.utils import concat_spaces
 from embed2learn.experiment import TaskEmbeddingRunner
 from embed2learn.policies import GaussianMLPMultitaskPolicy
-print(2)
 
-from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_6dof import SawyerReachPushPickPlace6DOFEnv
-print(3)
+from env_lists import EASY_MODE_DICT, EASY_MODE_ARGS_KWARGS
 
-N_TASKS = 10
-EXP_PREFIX = 'corl_te_push6dof'
 
-print(4)
+N_TASKS = len(EASY_MODE_DICT.keys())
+
+
 def run_task(v):
-    print(5)
-    goal_low=(-0.1, 0.8, 0.2)
-    goal_high=(0.1, 0.9, 0.2)
 
-
-    GOALS = np.random.uniform(low=goal_low, high=goal_high, size=(N_TASKS, len(goal_low))).tolist()
-    print(GOALS)
-    TASKS = {
-        str(i + 1): {
-            "args": [],
-            "kwargs": {
-                'tasks': [{'goal': np.array(g),  'obj_init_pos':np.array([0, 0.6, 0.02]), 'obj_init_angle': 0.3, 'type':'push'}],
-                'fix_task': True,
-                'if_render': False,
-            }
-        }
-        for i, g in enumerate(GOALS)
-    }
-    v['tasks'] = TASKS
     v = SimpleNamespace(**v)
-
-    task_names = sorted(v.tasks.keys())
-    task_args = [v.tasks[t]['args'] for t in task_names]
-    task_kwargs = [v.tasks[t]['kwargs'] for t in task_names]
-    print(6)
     with TaskEmbeddingRunner() as runner:
         # Environment
         env = TfEnv(
-                MultiTaskEnv(
-                    task_env_cls=SawyerReachPushPickPlace6DOFEnv,
-                    task_args=task_args,
-                    task_kwargs=task_kwargs))
+                MultiClassMultiTaskEnv(
+                    task_env_cls_dict=EASY_MODE_DICT,
+                    task_args_kwargs=EASY_MODE_ARGS_KWARGS,
+                ))
 
         # Latent space and embedding specs
         # TODO(gh/10): this should probably be done in Embedding or Algo
@@ -90,7 +66,7 @@ def run_task(v):
         traj_embedding = GaussianMLPEmbedding(
             name="inference",
             embedding_spec=traj_embed_spec,
-            hidden_sizes=(200, 100),  # was the same size as policy in Karol's paper
+            hidden_sizes=(200, 200),  # was the same size as policy in Karol's paper
             std_share_network=True,
             init_std=2.0,
         )
@@ -111,16 +87,16 @@ def run_task(v):
             env_spec=env.spec,
             task_space=env.task_space,
             embedding=task_embedding,
-            hidden_sizes=(200, 100),
+            hidden_sizes=(200, 200),
             std_share_network=True,
             init_std=v.policy_init_std,
         )
 
-        extra = v.latent_length + len(v.tasks)
+        extra = v.latent_length + N_TASKS
         baseline = MultiTaskGaussianMLPBaseline(
             env_spec=env.spec,
             extra_dims=extra,
-            regressor_args=dict(hidden_sizes=(200, 100)),
+            regressor_args=dict(hidden_sizes=(200, 200)),
         )
 
         algo = PPOTaskEmbedding(
@@ -135,33 +111,29 @@ def run_task(v):
             policy_ent_coeff=v.policy_ent_coeff,
             embedding_ent_coeff=v.embedding_ent_coeff,
             inference_ce_coeff=v.inference_ce_coeff,
-            use_softplus_entropy=True,
+            use_softplus_entropy=v.use_softplus_entropy,
         )
-
-        print(7)
         runner.setup(algo, env, batch_size=v.batch_size,
             max_path_length=v.max_path_length)
-        runner.train(n_epochs=2000, plot=False)
+        runner.train(n_epochs=int(1e7), plot=False)
 
-config = dict(
-    latent_length=3,
-    inference_window=6,
-    batch_size=4096 * N_TASKS,
-    policy_ent_coeff=5e-3,  # 1e-2
-    embedding_ent_coeff=1e-3,  # 1e-3
-    inference_ce_coeff=5e-3,  # 1e-4
-    max_path_length=200,
-    embedding_init_std=1.0,
-    embedding_max_std=2.0,
-    policy_init_std=1.0,
-)
 
-print(8)
-run_experiment(
-    run_task,
-    exp_prefix=EXP_PREFIX,
-    n_parallel=1,
-    seed=1,
-    variant=config,
-    plot=False,
-)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Play a pickled policy.')
+    parser.add_argument('variant_index', metavar='variant_index', type=int,
+                    help='The index of variants to use for experiment')
+    args = parser.parse_args()
+
+    from variants import TE_EASY_CONFIGS
+    
+    config = TE_EASY_CONFIGS[args.variant_index]
+    exp_prefix = 'corl_te_easy_10tasks_usesp{}_latentlen{}'.format(config['use_softplus_entropy'], config['latent_length'])
+
+    run_experiment(
+        run_task,
+        exp_prefix=exp_prefix,
+        n_parallel=1,
+        seed=1,
+        variant=config,
+        plot=False,
+    )

@@ -134,3 +134,25 @@ class NormalizedMultiTaskEnv(NormalizedEnv, Serializable):
 
 
 normalize = NormalizedMultiTaskEnv
+
+
+class MultiClassMultiTaskEnv(MultiTaskEnv):
+    def __init__(self,
+                 task_selection_strategy=round_robin,
+                 task_env_cls_dict=None,
+                 task_args_kwargs=None,
+                 sampled_tasks=None,):
+        Serializable.quick_init(self, locals())
+        assert len(task_env_cls_dict.keys()) == len(task_args_kwargs.keys())
+        for k in task_env_cls_dict.keys():
+            assert k in task_args_kwargs
+
+        self._task_envs = []
+        self._task_names = []
+        for task, env_cls in task_env_cls_dict.items():
+            task_args = task_args_kwargs[task]['args']
+            task_kwargs = task_args_kwargs[task]['kwargs']
+            self._task_envs.append(env_cls(*task_args, **task_kwargs))
+            self._task_names.append(task)
+        self._task_selection_strategy = task_selection_strategy
+        self._active_task = None

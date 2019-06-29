@@ -1,10 +1,10 @@
 from types import SimpleNamespace
-print(0)
+
 from akro.tf import Box
 from garage.envs.env_spec import EnvSpec
 from garage.experiment import run_experiment
 import numpy as np
-print(1)
+
 from embed2learn.algos import PPOTaskEmbedding
 from embed2learn.baselines import MultiTaskGaussianMLPBaseline
 from embed2learn.envs import MultiTaskEnv
@@ -14,41 +14,56 @@ from embed2learn.embeddings import GaussianMLPEmbedding
 from embed2learn.embeddings.utils import concat_spaces
 from embed2learn.experiment import TaskEmbeddingRunner
 from embed2learn.policies import GaussianMLPMultitaskPolicy
-print(2)
 
 from multiworld.envs.mujoco.sawyer_xyz.sawyer_reach_push_pick_place_6dof import SawyerReachPushPickPlace6DOFEnv
-print(3)
 
-N_TASKS = 10
-EXP_PREFIX = 'corl_te_push6dof'
 
-print(4)
+N_TASKS = 1
+EXP_PREFIX = 'corl_te_reach_push'
+
+
 def run_task(v):
-    print(5)
-    goal_low=(-0.1, 0.8, 0.2)
-    goal_high=(0.1, 0.9, 0.2)
 
+    reach_goal_low = np.array((-0.1, 0.8, 0.2))
+    reach_goal_high = np.array((-0.1, 0.8, 0.2))
+    reach_goals = np.random.uniform(low=reach_goal_low, high=reach_goal_high, size=(N_TASKS, len(reach_goal_low))).tolist()
 
-    GOALS = np.random.uniform(low=goal_low, high=goal_high, size=(N_TASKS, len(goal_low))).tolist()
-    print(GOALS)
-    TASKS = {
+    push_goal_low = np.array((0.1, 0.8, 0.2))
+    push_goal_high = np.array((0.1, 0.8, 0.2))
+    push_goals = np.random.uniform(low=push_goal_low, high=push_goal_high, size=(N_TASKS, len(push_goal_low))).tolist()
+
+    REACH_TASKS = {
         str(i + 1): {
             "args": [],
             "kwargs": {
-                'tasks': [{'goal': np.array(g),  'obj_init_pos':np.array([0, 0.6, 0.02]), 'obj_init_angle': 0.3, 'type':'push'}],
-                'fix_task': True,
+                'tasks': [{'goal': np.array(g),  'obj_init_pos': np.array([0, 0.6, 0.02]), 'obj_init_angle': 0.3, 'type':'reach'}],
+                'random_init': False,
                 'if_render': False,
             }
         }
-        for i, g in enumerate(GOALS)
+        for i, g in enumerate(reach_goals)
     }
+    PUSH_TASKS = {
+        str(i + 1 + N_TASKS): {
+            "args": [],
+            "kwargs": {
+                'tasks': [{'goal': np.array(g),  'obj_init_pos': np.array([0, 0.6, 0.02]), 'obj_init_angle': 0.3, 'type':'push'}],
+                'random_init': False,
+                'if_render': False,
+            }
+        }
+        for i, g in enumerate(push_goals)
+    }
+    REACH_TASKS.update(PUSH_TASKS)
+    TASKS = REACH_TASKS
+    print(TASKS)
     v['tasks'] = TASKS
     v = SimpleNamespace(**v)
 
     task_names = sorted(v.tasks.keys())
     task_args = [v.tasks[t]['args'] for t in task_names]
     task_kwargs = [v.tasks[t]['kwargs'] for t in task_names]
-    print(6)
+
     with TaskEmbeddingRunner() as runner:
         # Environment
         env = TfEnv(
@@ -137,15 +152,13 @@ def run_task(v):
             inference_ce_coeff=v.inference_ce_coeff,
             use_softplus_entropy=True,
         )
-
-        print(7)
         runner.setup(algo, env, batch_size=v.batch_size,
             max_path_length=v.max_path_length)
         runner.train(n_epochs=2000, plot=False)
 
 config = dict(
     latent_length=3,
-    inference_window=6,
+    inference_window=10,
     batch_size=4096 * N_TASKS,
     policy_ent_coeff=5e-3,  # 1e-2
     embedding_ent_coeff=1e-3,  # 1e-3
@@ -156,7 +169,6 @@ config = dict(
     policy_init_std=1.0,
 )
 
-print(8)
 run_experiment(
     run_task,
     exp_prefix=EXP_PREFIX,

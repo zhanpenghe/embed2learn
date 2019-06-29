@@ -8,7 +8,7 @@ from garage.np.baselines import Baseline
 from garage.tf.regressors import GaussianMLPRegressor
 
 
-class MultiTaskGaussianMLPBaseline(Baseline, Parameterized):
+class MultiTaskGaussianMLPBaseline(Baseline):
     """A value function using gaussian mlp network."""
 
     def __init__(
