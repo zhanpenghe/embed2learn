@@ -17,13 +17,13 @@ for sp in use_softplus_entropy:
                 latent_length=ll,
                 inference_window=20,
                 batch_size=4096 * N_TASK,
-                policy_ent_coeff=5e-3,  # 1e-2
+                policy_ent_coeff=1e-3,  # 1e-2
                 embedding_ent_coeff=1e-3,  # 1e-3
                 inference_ce_coeff=5e-3,  # 1e-4
-                max_path_length=200,
+                max_path_length=150,
                 embedding_init_std=1.0,
                 embedding_max_std=2.0,
-                policy_init_std=1.0,
+                policy_init_std=2.0,
                 use_softplus_entropy=sp,
             )
         )

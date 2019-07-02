@@ -8,6 +8,7 @@ import numpy as np
 
 from embed2learn.algos import PPOTaskEmbedding
 from embed2learn.baselines import MultiTaskGaussianMLPBaseline
+from embed2learn.baselines import MultiTaskLinearFeatureBaseline
 from embed2learn.envs import MultiClassMultiTaskEnv
 from embed2learn.envs.multi_task_env import TfEnv
 from embed2learn.embeddings import EmbeddingSpec
@@ -93,11 +94,12 @@ def run_task(v):
         )
 
         extra = v.latent_length + N_TASKS
-        baseline = MultiTaskGaussianMLPBaseline(
-            env_spec=env.spec,
-            extra_dims=extra,
-            regressor_args=dict(hidden_sizes=(200, 200)),
-        )
+        # baseline = MultiTaskGaussianMLPBaseline(
+        #     env_spec=env.spec,
+        #     extra_dims=extra,
+        #     regressor_args=dict(hidden_sizes=(200, 200)),
+        # )
+        baseline = MultiTaskLinearFeatureBaseline(env.spec)
 
         algo = PPOTaskEmbedding(
             env_spec=env.spec,

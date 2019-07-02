@@ -450,8 +450,7 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
         # Augment the path rewards with entropy terms
         with tf.name_scope("augmented_rewards"):
             rewards = i.reward_var \
-                      - (self.inference_ce_coeff * inference_ce) \
-                      + (self.policy_ent_coeff * policy_entropy)
+                      - (self.inference_ce_coeff * inference_ce) 
 
         with tf.name_scope("policy_loss"):
             with tf.name_scope("advantages"):
@@ -527,6 +526,7 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
 
                 # Embedding entropy bonus
                 surr_loss -= self.embedding_ent_coeff * embedding_entropy
+                surr_loss -= tf.reduce_mean(self.policy_ent_coeff * policy_entropy)
 
             embed_mean_kl = self._build_embedding_kl(i)
 
