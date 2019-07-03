@@ -1,6 +1,6 @@
 import time
 
-from garage.logger import tabular
+from garage.logger import logger, tabular
 from garage.misc import special
 from garage.sampler import utils
 from garage.sampler import parallel_sampler
@@ -137,6 +137,16 @@ class TaskEmbeddingSampler(BatchSampler):
         max_path_length = self.algo.max_path_length
         action_space = self.algo.env_spec.action_space
         observation_space = self.algo.env_spec.observation_space
+
+        # LinearFeatureBaseline doesn't need samples_data?
+        for idx, path in enumerate(paths):
+            path["returns"] = special.discount_cumsum(path["rewards"],
+                                                      self.algo.discount)
+        logger.log("Fitting baseline...")
+        if hasattr(self.algo.baseline, 'fit_with_samples'):
+            self.algo.baseline.fit_with_samples(paths, samples_data=None)
+        else:
+            self.algo.baseline.fit(paths)
 
         if hasattr(self.algo.baseline, "predict_n"):
             all_path_baselines = self.algo.baseline.predict_n(paths)
