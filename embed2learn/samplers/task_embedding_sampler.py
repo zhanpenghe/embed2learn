@@ -78,7 +78,7 @@ def rollout(env,
         latent_infos=tensor_utils.stack_tensor_dict_list(latent_infos),
         agent_infos=tensor_utils.stack_tensor_dict_list(agent_infos),
         env_infos=tensor_utils.stack_tensor_dict_list(env_infos),
-    )
+    ), env.env.active_task, env.env.active_env
 
 # Partial parallel_sampler API to modify the rollout function
 def _worker_collect_one_path(g, max_path_length, scope=None):
