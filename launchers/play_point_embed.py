@@ -10,7 +10,7 @@ import tensorflow as tf
 from embed2learn.envs.util import colormap_mpl
 from embed2learn.envs.multi_task_env import normalize, TfEnv
 
-MAX_PATH_LENGTH = 50
+MAX_PATH_LENGTH = 100
 SAMPLING_POSITIONS = np.linspace(-1, 1, num=10)
 
 
@@ -30,7 +30,7 @@ def rollout_given_z(env,
     observations = []
     while path_length < max_path_length:
         a, agent_info = agent.get_action_from_latent(o, z)
-        next_o, r, d, env_info = env.step(a)
+        next_o, r, d, env_info = env.step(a * 0.1)
         observations.append(agent.observation_space.flatten(o))
         path_length += 1
         if d:
@@ -56,6 +56,7 @@ def transform_z(policy):
     z_dists = [get_z_dist(t, policy) for t in range(num_tasks)]
     z_means = np.array([d["mean"] for d in z_dists])
     z_stds = np.array([np.exp(d["log_std"]) for d in z_dists])
+    return z_means, z_stds
 
 
 def play(pkl_filename):
@@ -71,17 +72,17 @@ def play(pkl_filename):
         policy = snapshot["policy"]
 
         # Get the task goals
-        task_envs = env._wrapped_env.env._task_envs
+        task_envs = env.env._task_envs
         num_tasks = len(task_envs)
         goals = np.array([te._goal for te in task_envs])
 
         task_cmap = colormap_mpl(num_tasks)
         for t, env in enumerate(task_envs):
             # Get latent distribution
-            z_mean, z_std = get_z_dist(t, policy)
-
-            transform_z(policy)
-
+            infos = get_z_dist(t, policy)
+            z_mean, z_std = infos['mean'], np.exp(infos['log_std'])
+            # z_mean, z_std = transform_z(policy)
+            print(z_mean, z_std)
             # Plot goal
             plt.scatter(
                 [goals[t, 0]], [goals[t, 1]],
@@ -89,7 +90,7 @@ def play(pkl_filename):
                 color=task_cmap[t],
                 zorder=2,
                 label="Task {}".format(t + 1))
-
+            print(env._goal, goals[t])
             # Plot rollouts for linearly interpolated latents
             for i, x in enumerate(SAMPLING_POSITIONS):
                 # systematic sampling of latent from embedding distribution
@@ -97,9 +98,9 @@ def play(pkl_filename):
 
                 # Run rollout
                 obs = rollout_given_z(
-                    TfEnv(normalize(env)),
+                    TfEnv(env),
                     policy,
-                    z,
+                    z_mean,
                     max_path_length=MAX_PATH_LENGTH,
                     animated=False)
 

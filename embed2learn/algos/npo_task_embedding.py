@@ -62,7 +62,7 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
                  inference_ce_coeff=1e-3,
                  use_softplus_entropy=False,
                  save_sample_frequency=0,
-                 stop_ce_graident=False,
+                 stop_ce_graident=True,
                  **kwargs):
         Serializable.quick_init(self, locals())
         assert isinstance(policy, StochasticMultitaskPolicy)

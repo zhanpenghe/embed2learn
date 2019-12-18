@@ -66,3 +66,6 @@ class MultiTaskGaussianMLPBaseline(Baseline, Parameterized):
     def set_param_values(self, flattened_params, **tags):
         """Set parameter values to val."""
         self._regressor.set_param_values(flattened_params, **tags)
+
+    def __setstate__(self, state):
+        pass

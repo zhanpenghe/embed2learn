@@ -32,7 +32,7 @@ TASKS = {
         'kwargs': {
             'goal': g,
             'never_done': True,
-            'completion_bonus': 0.0,
+            'completion_bonus': 1.,
             'action_scale': 0.1,
             'random_start': False,
         }
@@ -136,28 +136,31 @@ def run_task(v):
             embedding_ent_coeff=v.embedding_ent_coeff,
             inference_ce_coeff=v.inference_ce_coeff,
             use_softplus_entropy=True,
-            stop_ce_gradient=True,
+            stop_ce_gradient=False,
         )
 
         runner.setup(algo, env, batch_size=v.batch_size,
             max_path_length=v.max_path_length)
         runner.train(n_epochs=600, plot=False)
 
+# TODO the reward scale from the environment seems too be too small comparing to the entropy terms
+
+
 config = dict(
     tasks=TASKS,
     latent_length=2,
-    inference_window=2,
+    inference_window=4,
     batch_size=1024 * len(TASKS),
-    policy_ent_coeff=192e-2,  # 2e-2
-    embedding_ent_coeff=2.2e-3,  # 1e-2
-    inference_ce_coeff=5e-2,  # 1e-2
+    policy_ent_coeff=2e-3,  # 2e-2
+    embedding_ent_coeff=1e-4,  # 1e-2
+    inference_ce_coeff=2e-3,  # 1e-2
     max_path_length=100,
     embedding_init_std=1.0,
     embedding_max_std=2.0,
-    embedding_min_std=0.38,
+    embedding_min_std=0.05,
     policy_init_std=1.0,
     policy_max_std=None,
-    policy_min_std=None,
+    policy_min_std=0.03,
 )
 
 run_experiment(
