@@ -122,7 +122,7 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
         self.train_inference_network(inference_opt_input_values)
 
         samples_data = self.evaluate(policy_opt_input_values, samples_data)
-        self.visualize_distribution(samples_data)
+        # self.visualize_distribution(samples_data)
 
         # Fit baseline
         logger.log("Fitting baseline...")
@@ -443,7 +443,7 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
         pol_dist = self.policy._dist
 
         # Entropy terms
-        embedding_entropy, inference_ce, policy_entropy = \
+        embedding_entropy, inference_ce, policy_entropy, originals = \
             self._build_entropy_terms(i)
 
         # Augment the path rewards with entropy terms
@@ -526,7 +526,7 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
 
                 # Embedding entropy bonus
                 surr_loss -= self.embedding_ent_coeff * embedding_entropy
-
+                lower_bound = -originals['inference_ent'] + originals['embedding_ent'] + originals['policy_ent']
             embed_mean_kl = self._build_embedding_kl(i)
 
         # Diagnostic functions
@@ -540,6 +540,11 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
             rewards,
             log_name="f_rewards")
 
+        self.f_lowerbound = tensor_utils.compile_function(
+            flatten_inputs(self._policy_opt_inputs),
+            lower_bound,
+            log_name="f_lb")
+
         # returns = self._build_returns(rewards)
         returns = discounted_returns(self.discount, self.max_path_length, rewards, name="returns")
         self.f_returns = tensor_utils.compile_function(
@@ -551,7 +556,7 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
 
     def _build_entropy_terms(self, i):
         """ Calculate entropy terms """
-
+        originals = {}
         with tf.name_scope("entropy_terms"):
             # 1. Embedding distribution total entropy
             with tf.name_scope('embedding_entropy'):
@@ -560,7 +565,7 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
                     np.arange(task_dim), task_dim, name="all_task_one_hots")
                 all_task_entropies = self.policy.embedding.entropy_sym(
                     all_task_one_hots)
-
+                originals['embedding_ent'] = tf.reduce_mean(all_task_entropies)
                 if self._use_softplus_entropy:
                     all_task_entropies = tf.nn.softplus(all_task_entropies)
 
@@ -576,6 +581,7 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
                 traj_ll = tf.reshape(
                     traj_ll_flat, [-1, self.max_path_length], name="traj_ll")
                 inference_ce_raw = -traj_ll
+                originals['inference_ent'] = inference_ce_raw
                 inference_ce = tf.clip_by_value(inference_ce_raw, -3, 3)
 
                 if self._use_softplus_entropy:
@@ -591,7 +597,7 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
                 policy_entropy = tf.reshape(
                     policy_entropy_flat, [-1, self.max_path_length],
                     name="policy_entropy")
-
+                originals['policy_ent'] = policy_entropy
                 if self._use_softplus_entropy:
                     policy_entropy = tf.nn.softplus(policy_entropy)
 
@@ -613,7 +619,7 @@ class NPOTaskEmbedding(BatchPolopt, Serializable):
             tf.reduce_mean(policy_entropy * i.valid_var),
             log_name="f_policy_entropy")
 
-        return embedding_entropy, inference_ce, policy_entropy
+        return embedding_entropy, inference_ce, policy_entropy, originals
 
     def _build_embedding_kl(self, i):
         dist = self.policy._embedding._dist

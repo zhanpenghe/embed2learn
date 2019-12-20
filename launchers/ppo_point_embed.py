@@ -25,7 +25,7 @@ def circle(r, n):
 
 
 N = 4
-goals = circle(3.0, N)
+goals = circle(1.0, N)
 TASKS = {
     str(i + 1): {
         'args': [],
@@ -152,12 +152,12 @@ config = dict(
     inference_window=4,
     batch_size=1024 * len(TASKS),
     policy_ent_coeff=2e-3,  # 2e-2
-    embedding_ent_coeff=1e-4,  # 1e-2
+    embedding_ent_coeff=1e-3,  # 1e-2
     inference_ce_coeff=2e-3,  # 1e-2
-    max_path_length=100,
+    max_path_length=50,
     embedding_init_std=1.0,
     embedding_max_std=2.0,
-    embedding_min_std=0.05,
+    embedding_min_std=0.45,
     policy_init_std=1.0,
     policy_max_std=None,
     policy_min_std=0.03,

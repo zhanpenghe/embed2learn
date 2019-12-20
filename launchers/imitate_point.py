@@ -12,7 +12,8 @@ from embed2learn.envs.multi_task_env import normalize, TfEnv
 
 
 MAX_PATH_LENGTH = 50
-SAMPLING_POSITIONS = np.linspace(-1, 1, num=10)
+SAMPLING_POSITIONS = np.linspace(-1, 1, num=30)
+WINDOW_SIZE = 4
 
 
 def rollout_given_z(env,
@@ -44,9 +45,10 @@ def rollout_given_z(env,
     return np.array(observations)
 
 
-def rollout_given_z(env,
+def rollout_imitation(env,
                     agent,
-                    z,
+                    traj,
+                    inference,
                     max_path_length=np.inf,
                     animated=False,
                     speedup=1):
@@ -59,6 +61,11 @@ def rollout_given_z(env,
     path_length = 0
     observations = []
     while path_length < max_path_length:
+        if path_length + WINDOW_SIZE >= traj.shape[0]:
+            window = traj[traj.shape[0] - WINDOW_SIZE: traj.shape[0], ...]
+        else:
+            window = traj[path_length: path_length + WINDOW_SIZE, ...]
+        z, z_info = inference.get_latent(window)
         a, agent_info = agent.get_action_from_latent(z, o)
         next_o, r, d, env_info = env.step(a)
         observations.append(agent.observation_space.flatten(o))
@@ -81,38 +88,35 @@ def get_z_dist(t, policy):
     return latent_info
 
 
-def play(pkl_filename):
-    matplotlib.rcParams['pdf.fonttype'] = 42
-    matplotlib.rcParams['ps.fonttype'] = 42
-    plt.figure(figsize=(8, 8))
-
+def imitate(pkl_filename):
     with tf.Session():
-
         # Unpack the snapshot
         snapshot = joblib.load(pkl_filename)
-        env = snapshot["env"]
-        policy = snapshot["policy"]
+        env = snapshot['env']
+        policy = snapshot['policy']
+        inference_net = snapshot['inference']
 
-        # Get the task goals
+        # collect expert data
         task_envs = env.env._task_envs
         num_tasks = len(task_envs)
         goals = np.array([te._goal for te in task_envs])
 
         task_cmap = colormap_mpl(num_tasks)
+        expert_data = []
+        imitation_data = []
+
         for t, env in enumerate(task_envs):
             # Get latent distribution
             infos = get_z_dist(t, policy)
             z_mean, z_std = infos['mean'], np.exp(infos['log_std'])
 
-            # Plot goal
             plt.scatter(
-                [goals[t, 0]], [goals[t, 1]],
+                [goals[t, 0]* 3] , [goals[t, 1]*3],
                 s=50,
                 color=task_cmap[t],
                 zorder=2,
-                label="Task {}".format(t + 1))
+                label="Task {}".format((t + 1)))
 
-            # Plot rollouts for linearly interpolated latents
             for i, x in enumerate(SAMPLING_POSITIONS):
                 # systematic sampling of latent from embedding distribution
                 z = z_mean + x * z_std
@@ -124,9 +128,20 @@ def play(pkl_filename):
                     z,
                     max_path_length=MAX_PATH_LENGTH,
                     animated=False)
+                expert_data.append(obs)
+
+                obs_imitate = rollout_imitation(
+                    TfEnv(env),
+                    policy,
+                    obs,
+                    inference_net,
+                    max_path_length=MAX_PATH_LENGTH,
+                    animated=False,)
+                imitation_data.append(obs_imitate)
 
                 # Plot rollout
-                plt.plot(obs[:, 0], obs[:, 1], alpha=0.7, color=task_cmap[t])
+                plt.plot(obs[:, 0], obs[:, 1], alpha=0.3, color=task_cmap[t])
+                plt.plot(obs_imitate[:, 0], obs_imitate[:, 1], alpha=1, color=task_cmap[t])
 
         plt.grid(True)
         plt.xlim([-4, 4])
@@ -137,10 +152,43 @@ def play(pkl_filename):
         plt.savefig('rollout.pdf')
         plt.show()
 
+        expert_data = np.array(expert_data)
+        imitation_data = np.array(imitation_data)
+        distance = np.mean(
+            np.sum(np.square(expert_data - imitation_data), axis=1)
+        )
+        print("error: {}".format(distance))
+        
+
+def imitate_unseen(pkl_filename):
+    with tf.Session():
+        # Unpack the snapshot
+        snapshot = joblib.load(pkl_filename)
+        env = snapshot['env']
+        policy = snapshot['policy']
+        inference_net = snapshot['inference']
+
+        task_envs = env.env._task_envs
+        num_tasks = len(task_envs)
+        goals = np.array([te._goal for te in task_envs])
+
+        env = task_envs[0]
+        env._goal = np.array([1., 1.])
+        demonstrations = np.array(joblib.load('demonstrations.pkl'))
+        obs = rollout_imitation(
+                    TfEnv(env),
+                    policy,
+                    demonstrations[0],
+                    inference_net,
+                    max_path_length=MAX_PATH_LENGTH,
+                    animated=True,)
+        return obs
+
+
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print('Usage: %s PKL_FILENAME' % sys.argv[0])
         sys.exit(0)
 
-    play(sys.argv[1])
+    imitate(sys.argv[1])

@@ -30,6 +30,7 @@ class PointEnv(gym.Env, Serializable):
         # Parameterized.__init__(self)
 
         self._goal = np.array(goal, dtype=np.float32)
+        print(self._goal)
         self._point = np.zeros(2)
         self._completion_bonus = completion_bonus
         self._never_done = never_done
@@ -82,6 +83,7 @@ class PointEnv(gym.Env, Serializable):
         is_success = False
         # completion bonus
         if done:
+            print('success!')
             is_success = True
             reward += self._completion_bonus
 
